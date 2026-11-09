@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light">
+<script>try{if(localStorage.getItem('rfcascade:theme')==='dark')document.documentElement.dataset.theme='dark';}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RF Cascade Simulator</title>
 <meta name="theme-color" content="#EEF0EC">
@@ -339,6 +340,10 @@ svg.chart text{font-family:var(--font);font-variant-numeric:tabular-nums}
 .fg.one .chk,.fg.one .fsub{grid-column:auto}
 /* ADC: the derived one of SINAD / ENOB */
 .adc-sinad [data-f="enob"],.adc-enob [data-f="sinad"]{border-style:dashed;color:var(--muted)}
+/* theme button: moon in light mode, sun in dark mode */
+#btnTheme .ic-light{display:none}
+:root[data-theme="dark"] #btnTheme .ic-light{display:block}
+:root[data-theme="dark"] #btnTheme .ic-dark{display:none}
 /* uncommitted numeric edits */
 input.pending,input.pending:focus{border-color:var(--bad)!important;box-shadow:inset 0 0 0 1px var(--bad)!important}
 /* input power sweep */
@@ -403,6 +408,7 @@ input.pending,input.pending:focus{border-color:var(--bad)!important;box-shadow:i
     <div class="actions">
       <button class="btn icon" id="btnUndo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 16 16"><path d="M5 3L2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H6"/></svg></button>
       <button class="btn icon" id="btnRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled><svg viewBox="0 0 16 16"><path d="M11 3l3 3-3 3"/><path d="M14 6H6.5a4 4 0 0 0 0 8H10"/></svg></button>
+      <button class="btn icon" id="btnTheme" title="Switch to dark background" aria-label="Switch to dark background"><svg viewBox="0 0 16 16" class="ic-dark"><path d="M13.5 9.6A5.5 5.5 0 0 1 6.4 2.5a5.5 5.5 0 1 0 7.1 7.1Z"/></svg><svg viewBox="0 0 16 16" class="ic-light"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9 13 13M13 3l-1.1 1.1M4.1 11.9 3 13"/></svg></button>
       <span class="sep" aria-hidden="true"></span>
       <button class="btn" id="btnNew">New</button>
       <button class="btn" id="btnLib">Saved chains</button>
@@ -2041,6 +2047,19 @@ $('#fileIn').addEventListener('change',async e=>{
     setStatus(`Loaded “${state.name}”. Press Save to keep it.`,'warn');
   }catch(err){setStatus('Could not read the file: not a valid chain JSON','bad');}
 });
+
+/* ---------- light / dark background ---------- */
+function applyTheme(t){
+  const root=document.documentElement; if(t==='dark')root.dataset.theme='dark'; else delete root.dataset.theme;
+  const cs=document.querySelector('meta[name="color-scheme"]'); if(cs)cs.content=t==='dark'?'dark':'light';
+  const tc=document.querySelector('meta[name="theme-color"]'); if(tc)tc.content=t==='dark'?'#10141A':'#EEF0EC';
+  const b=$('#btnTheme'), lab=t==='dark'?'Switch to light background':'Switch to dark background'; b.title=lab; b.setAttribute('aria-label',lab);
+}
+$('#btnTheme').addEventListener('click',()=>{
+  const t=document.documentElement.dataset.theme==='dark'?'light':'dark';
+  applyTheme(t); try{localStorage.setItem('rfcascade:theme',t);}catch(e){}
+});
+applyTheme(document.documentElement.dataset.theme==='dark'?'dark':'light');
 
 /* ---------- boot ---------- */
 state=readDraft()||example();
