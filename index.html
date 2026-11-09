@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RF Cascade Simulator</title>
-<meta name="theme-color" content="#10141A">
+<meta name="theme-color" content="#EEF0EC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="RF Cascade">
 <meta name="description" content="RF and baseband cascade simulator: gain, NF, P1dB, IP3, signal levels, ADC check and input power sweep.">
 <link rel="manifest" href="manifest.webmanifest">
@@ -19,8 +20,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#E8EBEF; --panel:#F8F9FB; --panel2:#EFF2F5; --ink:#17202B; --muted:#596476;
-  --line:#C9CFD8; --line2:#DCE1E7; --hover:rgba(23,32,43,.065);
+  --bg:#EEF0EC; --panel:#FBFCFA; --panel2:#F3F5F1; --ink:#18202A; --muted:#66707C;
+  --line:#CDD3CC; --line2:#E2E5E0; --hover:rgba(24,32,42,.06);
   --label:#3A4555; --gain:#1C8A4C; --nf:#C02A55; --p1:#0D7A81; --op1:#4553C4; --ip3:#7A43C0; --sig:#1F5FBF; --im:#C85A12; --im2:#B0457A; --bbtint:rgba(31,95,191,.06);
   --bad:#C02A55; --ok:#1C8A4C; --warn:#A86A00;
   --font:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -29,14 +30,6 @@
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#10141A; --panel:#191F28; --panel2:#151A22; --ink:#E4E8EE; --muted:#94A0B1; --label:#C2CAD5;
-    --line:#2E3744; --line2:#252D38; --hover:rgba(228,232,238,.07);
-    --gain:#4FD08A; --nf:#FF5E88; --p1:#35C4C9; --op1:#94A0FF; --ip3:#C49BFF; --sig:#6AA8FF; --im:#FF9A55; --im2:#FF8FC4; --bbtint:rgba(106,168,255,.07);
-    --bad:#FF5E88; --ok:#4FD08A; --warn:#F0B43A;
-  }
 }
 :root[data-theme="dark"]{
   --bg:#10141A; --panel:#191F28; --panel2:#151A22; --ink:#E4E8EE; --muted:#94A0B1; --label:#C2CAD5;
@@ -1278,7 +1271,7 @@ function stageCard(s,col,o){
   } else {
     const linked=s.link&&s.type!=='amp';
     body=fld('g','Gain','dB',s.g,{g:1})+fld('nf','NF','dB',effNF(s),{dis:linked})+fld('p1','IP1dB','dBm',s.p1)+ip3Fld(s)+
-      (s.type==='mixer'?chkFld('link','Passive: NF = loss',s.link):'');
+      (s.type==='mixer'?chkFld('link','NF = loss',s.link):'');
   }
   return cardShell(s,col,o,o.fixed?`<span class="tlabel">SPDT</span>`:typeSel(s),body,false,toolsHTML(o));
 }
