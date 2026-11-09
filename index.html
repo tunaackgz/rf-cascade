@@ -1,0 +1,2076 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RF Cascade Simulator</title>
+<meta name="theme-color" content="#10141A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RF Cascade">
+<meta name="description" content="RF and baseband cascade simulator: gain, NF, P1dB, IP3, signal levels, ADC check and input power sweep.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EBEF; --panel:#F8F9FB; --panel2:#EFF2F5; --ink:#17202B; --muted:#596476;
+  --line:#C9CFD8; --line2:#DCE1E7; --hover:rgba(23,32,43,.065);
+  --label:#3A4555; --gain:#1C8A4C; --nf:#C02A55; --p1:#0D7A81; --op1:#4553C4; --ip3:#7A43C0; --sig:#1F5FBF; --im:#C85A12; --im2:#B0457A; --bbtint:rgba(31,95,191,.06);
+  --bad:#C02A55; --ok:#1C8A4C; --warn:#A86A00;
+  --font:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --col:132px; --gh:0px;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10141A; --panel:#191F28; --panel2:#151A22; --ink:#E4E8EE; --muted:#94A0B1; --label:#C2CAD5;
+    --line:#2E3744; --line2:#252D38; --hover:rgba(228,232,238,.07);
+    --gain:#4FD08A; --nf:#FF5E88; --p1:#35C4C9; --op1:#94A0FF; --ip3:#C49BFF; --sig:#6AA8FF; --im:#FF9A55; --im2:#FF8FC4; --bbtint:rgba(106,168,255,.07);
+    --bad:#FF5E88; --ok:#4FD08A; --warn:#F0B43A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10141A; --panel:#191F28; --panel2:#151A22; --ink:#E4E8EE; --muted:#94A0B1; --label:#C2CAD5;
+  --line:#2E3744; --line2:#252D38; --hover:rgba(228,232,238,.07);
+  --gain:#4FD08A; --nf:#FF5E88; --p1:#35C4C9; --op1:#94A0FF; --ip3:#C49BFF; --sig:#6AA8FF; --im:#FF9A55; --im2:#FF8FC4; --bbtint:rgba(106,168,255,.07);
+  --bad:#FF5E88; --ok:#4FD08A; --warn:#F0B43A;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--op1);outline-offset:2px}
+.su{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.wrap{max-width:1600px;margin:0 auto;padding:18px clamp(12px,2.4vw,28px) 40px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.panel-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin:0 6px 6px}
+h2{font-family:var(--cond);font-weight:600;font-size:20px;margin:0}
+.hint{font-size:12.5px;color:var(--muted)}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand svg{width:34px;height:22px;fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+h1{font-family:var(--cond);font-weight:600;font-size:28px;letter-spacing:.2px;margin:0;line-height:1}
+.namebox{display:flex;align-items:center;gap:8px}
+.namebox label{color:var(--muted);font-size:13px}
+#chainName{width:min(260px,52vw);padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);font-weight:500}
+.actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel);cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.icon{padding:7px 9px}
+.btn.icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn.armed{border-color:var(--bad);color:var(--bad)}
+.btn[hidden]{display:none}
+.sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.status{font-size:13px;color:var(--muted);min-height:1.2em;flex-basis:100%;text-align:right;margin-top:-6px}
+.status.ok{color:var(--ok)} .status.bad{color:var(--bad)} .status.warn{color:var(--warn)}
+
+/* analysis setup */
+.setup input.bad{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px;align-items:stretch}
+@media (max-width:980px){.overview{grid-template-columns:1fr}}
+.ov{padding:12px 16px 10px}
+.ov h2{font-size:19px;margin:0 0 6px}
+.ov .hint{margin:0 0 6px}
+.kvin{display:grid;grid-template-columns:minmax(0,1fr) 70px 34px;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line2);font-size:13.5px;color:var(--muted)}
+.kvin input{width:100%;padding:3px 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-size:14px}
+.kvin em{font-style:normal;font-size:12.5px}
+.ov p.hint:last-child{margin:8px 0 0}
+.kv{position:relative;padding:5px 0 5px 11px;border-bottom:1px solid var(--line2)}
+.kv::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:2px;background:var(--c,var(--muted))}
+.kvr{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.kv .k{font-size:13.5px;color:var(--muted)}
+.kv .k small{display:block;font-size:11.5px}
+.kv .v{font-family:var(--cond);font-weight:600;font-size:23px;line-height:1.1;color:var(--c,var(--ink));font-variant-numeric:tabular-nums;white-space:nowrap}
+.kv .v small{font-family:var(--font);font-size:12.5px;font-weight:500;color:var(--muted);margin-left:4px}
+.kv .v .sl{color:var(--muted);font-weight:500;margin:0 3px}
+.kd{font-size:12px;color:var(--muted);margin-top:1px}.kd b{color:var(--ink);font-weight:600}
+.ov .paused{margin:4px 0}
+/* path selection */
+.paths{padding:10px 16px 12px;margin-bottom:12px}
+.paths[hidden]{display:none}
+.paths.ask{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset}
+.prow{display:grid;grid-template-columns:minmax(140px,220px) 1fr;gap:8px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--line2)}
+.prow:first-of-type{border-top:0}
+.pname{font-weight:600}
+.pname small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.popts{display:flex;flex-wrap:wrap;gap:8px}
+.popt{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;min-width:200px;flex:1;max-width:360px;padding:7px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);cursor:pointer}
+.popt:hover{border-color:var(--muted)}
+.popt.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--panel)}
+.popt b{font-size:14px}
+.popt span{font-size:13px;color:var(--ink)}
+.popt small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* summary */
+.sumgroup{margin-bottom:10px}
+.sumgroup h3{font-size:13px;font-weight:500;color:var(--muted);margin:0 0 5px 2px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.metric{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:8px 12px 8px 15px;position:relative}
+.metric::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--c,var(--muted))}
+.metric .k{font-size:12.5px;color:var(--muted)}
+.metric .v{font-family:var(--cond);font-weight:600;font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--c,var(--ink))}
+.metric .d{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
+.metric .d b{color:var(--ink);font-weight:600}
+.metric .u{font-size:13px;color:var(--muted);margin-left:4px;font-family:var(--font);font-weight:500}
+.paused{padding:18px;border:1px dashed var(--warn);border-radius:10px;color:var(--warn);font-weight:500;margin-bottom:12px}
+.insight{margin:4px 0 14px;color:var(--muted);font-size:14px;max-width:100ch}
+.insight b{color:var(--ink);font-weight:600}
+
+/* ADC check */
+.adcp{padding:12px 16px;margin-bottom:12px}
+.adcp[hidden]{display:none}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid currentColor}
+.badge.ok{color:var(--ok)} .badge.warn{color:var(--warn)} .badge.bad{color:var(--bad)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:6px 22px;margin:8px 6px 6px}
+.fact{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;border-bottom:1px solid var(--line2);padding:3px 0}
+.fact span{color:var(--muted)}
+.fact b{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.gauge{position:relative;height:14px;border-radius:7px;overflow:hidden;margin:0 0 5px;background:var(--panel2)}
+.gauge i{position:absolute;top:0;bottom:0}
+.gmark{position:absolute;top:0;bottom:0;width:3px;margin-left:-1.5px;background:var(--ink);border-radius:2px}
+.gwrap{position:relative;margin:4px 10px 10px;padding-top:22px}
+.gpin{position:absolute;top:0;z-index:1;transform:translateX(-50%);font-size:12.5px;font-weight:600;white-space:nowrap}
+.glabs{position:relative;height:var(--gl,18px);font-size:12px;color:var(--muted)}
+.glabs span{position:absolute;white-space:nowrap;font-variant-numeric:tabular-nums}
+.note2{margin:8px 6px 0;font-size:14px}
+.note2 .badge{margin-right:8px}
+.advice{margin:8px 6px 0;font-size:14px}
+
+/* block diagram */
+.diagram{padding:10px 12px 8px;margin-bottom:14px}
+#diag{display:block;width:100%;height:auto;margin:0 auto}
+#diag text{font-family:var(--font);font-variant-numeric:tabular-nums}
+.dcell{fill:transparent}
+.dcell.hover{fill:var(--hover)}
+.bbzone{fill:var(--bbtint)}
+.dzone{font-size:11.5px;font-weight:600;fill:var(--muted);letter-spacing:.04em}
+.dvpp{font-size:11px;font-weight:500;fill:var(--muted);paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
+.diq{font-size:11px;font-weight:600;fill:var(--sig)}
+.dblock,.armhit{cursor:pointer}
+.armhit{fill:transparent}
+.dblock:focus-visible{outline:none}
+.dblock:focus-visible .dcell{stroke:var(--op1);stroke-width:2}
+.dname{font-size:14px;font-weight:600;fill:var(--ink)}
+.dtitle{font-size:13.5px;font-weight:600;fill:var(--muted)}
+.dwarn{fill:var(--warn)}
+.dp{font-size:12.5px;font-weight:500}
+.dlab{font-size:11.5px;fill:var(--muted)}
+.wire{fill:none;stroke:var(--muted);stroke-width:1.5}
+.dbv{font-weight:500!important;opacity:.85}
+.dpow{font-size:11.5px;font-weight:600;fill:var(--sig);paint-order:stroke;stroke:var(--panel);stroke-width:3.5px;stroke-linejoin:round}
+.wire.on{stroke:var(--ink);stroke-width:1.8}
+.gframe{fill:none;stroke:var(--line);stroke-width:1.3;stroke-dasharray:6 4}
+
+/* board */
+.board{overflow-x:auto;overscroll-behavior-x:contain}
+.board-inner{position:relative;padding:14px 0 6px}
+.cards{display:flex;align-items:flex-start;padding-left:60px;padding-top:var(--gh)}
+.card{position:relative;width:calc(var(--col) - 10px);flex-shrink:0;margin:0 5px;background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:8px 8px 6px;display:flex;flex-direction:column;gap:5px;transition:border-color .12s}
+.card.hover{border-color:var(--muted)}
+.shift{transition:transform .16s ease}
+.dragging{z-index:5;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.card.dragging{border-color:var(--muted);background:var(--panel)}
+.card.flash{animation:flash 1.1s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--op1)}100%{box-shadow:0 0 0 0 transparent}}
+.card-top{display:flex;align-items:center;gap:4px;min-height:24px}
+.grip{display:inline-flex;cursor:grab;touch-action:none;color:var(--muted);padding:2px 1px;border-radius:4px;flex-shrink:0}
+.grip:hover{background:var(--hover);color:var(--ink)}
+.grip svg{width:10px;height:16px;fill:currentColor}
+.idx{font-family:var(--cond);font-weight:600;font-size:15px;min-width:14px;color:var(--muted)}
+.ctype{flex:1;min-width:0;padding:2px 1px;border:1px solid var(--line);border-radius:5px;background:var(--panel);font-size:12px}
+.tlabel{font-weight:600;font-size:13.5px}
+.sym{display:flex;justify-content:center;color:var(--ink);padding:2px 0}
+.sym svg{width:60px;height:32px}
+.cname{width:100%;padding:3px 6px;border:1px solid transparent;border-radius:5px;background:transparent;font-weight:600;font-size:13.5px;text-align:center}
+.cname:hover,.cname:focus{border-color:var(--line);background:var(--panel)}
+.row{display:grid;grid-template-columns:40px minmax(46px,1fr) minmax(26px,auto);align-items:center;gap:3px;font-size:12.5px;color:var(--muted)}
+.row span{white-space:nowrap;overflow:hidden}
+.row em{white-space:nowrap}
+.csel{width:100%;min-width:0;padding:2px 2px;border:1px solid var(--line);border-radius:5px;background:var(--panel);font-size:12.5px;color:var(--ink)}
+.cinfo{font-size:11.5px;color:var(--muted);line-height:1.4;font-variant-numeric:tabular-nums;min-height:1em}
+.cinfo b{color:var(--ink);font-weight:600;white-space:nowrap}
+.rlnote{font-size:11px;color:var(--muted);margin-top:-3px;line-height:1.3}
+.add-sub{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 1px 4px}
+.row em{font-style:normal;font-size:11.5px}
+.row input{width:100%;min-width:0;padding:3px 4px;border:1px solid var(--line);border-radius:5px;background:var(--panel);text-align:right;font-variant-numeric:tabular-nums;font-size:13.5px;color:var(--ink)}
+.row.g span,.row.g input{color:var(--gain)}
+.row input:disabled{background:transparent;border-style:dashed;color:var(--muted)}
+.row input.bad{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.reftog{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:0 2px;font-size:10.5px;font-weight:600;color:var(--ip3);cursor:pointer;line-height:1.6}
+.reftog:hover{border-color:var(--ip3)}
+.chk{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;min-height:18px}
+.chk input{margin:0;accent-color:var(--ink)}
+.chk-spacer{min-height:18px}
+.adcinfo{font-size:11.5px;color:var(--muted);line-height:1.4;font-variant-numeric:tabular-nums}
+.adcinfo b{color:var(--ink);font-weight:600}
+.tools{display:flex;justify-content:space-between;margin-top:auto;padding-top:3px;border-top:1px solid var(--line2)}
+.tools button,.ghead button.ic{border:0;background:transparent;padding:4px 6px;border-radius:5px;cursor:pointer;color:var(--muted);display:inline-flex}
+.tools button:hover:not(:disabled),.ghead button.ic:hover{background:var(--hover);color:var(--ink)}
+.tools button:disabled{opacity:.3;cursor:default}
+.tools svg,.ghead svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.in-note{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.35}
+.addcard{width:150px;margin:0 5px;border:1px dashed var(--line);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.add-title{font-size:13px;color:var(--muted);margin-bottom:2px}
+.addcard button{display:flex;align-items:center;gap:6px;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 4px;cursor:pointer;font-size:13px;text-align:left}
+.addcard button:hover:not(:disabled){background:var(--hover);border-color:var(--line2)}
+.addcard button:disabled{opacity:.4;cursor:default}
+.mini svg{width:30px;height:16px;display:block}
+
+/* switched group on the board */
+.group{position:relative;display:flex;align-items:flex-start;flex-shrink:0}
+.gframe-b{position:absolute;left:1px;right:1px;top:calc(-1 * var(--gh) + 2px);bottom:-5px;border:1.3px dashed var(--line);border-radius:11px;pointer-events:none}
+.ghead{position:absolute;left:6px;right:6px;top:calc(-1 * var(--gh) + 7px);height:30px;display:flex;align-items:center;gap:4px}
+.gname{flex:1;min-width:0;padding:3px 6px;border:1px solid transparent;border-radius:5px;background:transparent;font-weight:600;font-size:13.5px}
+.gname:hover,.gname:focus{border-color:var(--line);background:var(--panel)}
+.tabs{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;flex-shrink:0}
+.tabs button{border:0;background:var(--panel);padding:2px 9px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button.on{background:var(--ink);color:var(--panel)}
+.tabs.ask{animation:ask 1.4s ease-in-out infinite;border-color:var(--warn)}
+@keyframes ask{50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 35%,transparent)}}
+.gadd{flex-shrink:0;width:66px;padding:2px 2px;border:1px solid var(--line);border-radius:5px;background:var(--panel);font-size:12.5px}
+
+.chart-block{border-top:1px solid var(--line2);margin-top:14px;padding-top:10px}
+.chart-head{position:sticky;left:0;width:max-content;max-width:100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;padding:0 16px 0 18px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend svg{width:22px;height:10px}
+svg.chart{display:block}
+svg.chart text{font-family:var(--font);font-variant-numeric:tabular-nums}
+.colband{fill:transparent}
+.colband.hover{fill:var(--hover)}
+.grid{stroke:var(--line2);stroke-width:1}
+.zero{stroke:var(--line);stroke-width:1.3}
+.ytick{fill:var(--muted);font-size:11.5px}
+.xlab{fill:var(--muted);font-size:11.5px}
+.xsym{color:var(--muted);stroke-width:2.6}
+.vlab{font-size:12px;font-weight:600;paint-order:stroke;stroke:var(--panel);stroke-width:3.5px;stroke-linejoin:round}
+.blab{font-size:10.5px;font-weight:600}
+.xtra{font-size:11.5px;font-weight:600}
+.marktxt{font-size:12px;font-weight:600}
+.empty{fill:var(--muted);font-size:14px}
+
+.tip{position:fixed;z-index:20;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.14);min-width:220px}
+.tip[hidden]{display:none}
+.tip b{display:block;margin-bottom:4px}
+.tip table{border-collapse:collapse;width:100%}
+.tip td{padding:1px 0;font-variant-numeric:tabular-nums}
+.tip td:last-child{text-align:right;padding-left:14px;font-weight:600}
+.tip .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+
+.notes{margin-top:18px;font-size:13px;color:var(--muted);max-width:100ch}
+.notes p{margin:4px 0}
+
+.overlay{position:fixed;inset:0;background:rgba(10,14,20,.42);display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 8vh) 14px 14px;z-index:30}
+.overlay[hidden]{display:none}
+.sheet{width:min(560px,100%);max-height:78vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sheet h2{font-size:22px}
+.sheet .note{color:var(--muted);font-size:13px;margin:4px 0 12px}
+#libList,#exList{list-style:none;margin:0;padding:0}
+#libList li,#exList li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line2)}
+#exList .meta{flex:1;min-width:0}#exList .nm{font-weight:600}#exList .sub{font-size:12.5px;color:var(--muted)}
+#libList .meta{flex:1;min-width:0}
+#libList .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#libList .sub{font-size:12.5px;color:var(--muted)}
+#libList .btn{padding:5px 10px;font-size:13px}
+/* on/off (bypass) toggle */
+.tog{position:relative;flex-shrink:0;width:30px;height:17px;padding:0;border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;margin-left:auto}
+.tog i{position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:var(--muted);transition:left .15s}
+.tog.on{background:var(--ok);border-color:var(--ok)}
+.tog.on i{left:15px;background:var(--panel)}
+.card.off{background:repeating-linear-gradient(135deg,var(--panel2) 0 7px,var(--panel) 7px 14px)}
+.card.off .sym,.card.off .row,.card.off .chk,.card.off .adcinfo{opacity:.42}
+.offnote{font-size:11.5px;font-weight:600;color:var(--warn);text-align:center;margin-top:-3px}
+.group.off .gframe-b{border-color:var(--warn)}
+/* compact cards */
+.card{padding:6px 7px 5px;gap:4px}
+.card-top{min-height:22px;gap:3px}
+.ctype,.fld .csel{appearance:none;-webkit-appearance:none;padding:1px 12px 1px 4px;height:21px;font-size:11.5px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 7.5px) 55%,calc(100% - 4px) 55%;background-size:3.5px 3.5px;background-repeat:no-repeat}
+.tog{width:26px;height:15px}.tog i{width:9px;height:9px}.tog.on i{left:13px}
+.nameln{display:flex;align-items:center;gap:3px;min-width:0}
+.card-top{gap:4px}
+.card-top .ctype{flex:0 0 70px;width:70px;min-width:0}
+.card-top .tog{margin-left:auto;flex-shrink:0;width:24px}.card-top .tog.on i{left:11px}
+.card-top{gap:3px}
+.card-top .tlabel{margin-left:0}
+.card-top .idx{min-width:14px}
+.fg:not(.one) .fl{font-size:11px}
+.nameln{gap:2px;align-items:center;min-height:32px}.nameln .sym{padding:0;flex-shrink:0;display:flex;align-items:center}.nameln .sym svg{width:40px;height:23px}
+.nameln .tog{flex-shrink:0;margin-left:0;width:24px}.nameln .tog.on i{left:11px}
+.card .cname{flex:1;min-width:0;text-align:left;font-family:var(--cond);font-weight:600;font-size:14px;line-height:1.15;padding:1px 3px;
+  border:1px solid transparent;border-radius:5px;color:var(--ink);overflow-wrap:anywhere;white-space:pre-wrap;outline:none;cursor:text}
+.card .cname:hover,.card .cname:focus{border-color:var(--line);background:var(--panel)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:3px 5px}
+.fld{display:flex;flex-direction:column;min-width:0}
+.fld.s2,.chk.s2,.fsub{grid-column:span 2}
+.fl{display:flex;justify-content:space-between;align-items:baseline;gap:2px;font-size:11px;color:var(--label);line-height:1.3;white-space:nowrap;overflow:hidden}
+.fl i{font-style:normal;overflow:hidden;text-overflow:ellipsis}.fl em{font-style:normal;opacity:.85;font-size:10px}
+.fld input,.fld .csel{width:100%;min-width:0;height:22px;padding:1px 4px;border:1px solid var(--line);border-radius:5px;background-color:var(--panel);
+  text-align:left;font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink)}
+.fld .csel{text-align:left;font-size:11.5px;padding:1px 12px 1px 4px;height:22px;cursor:pointer}
+.fld.g input,.fld.g i{color:var(--gain)}
+.fld input:disabled{background:transparent;border-style:dashed;color:var(--muted)}
+.fld input.bad{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.fl .reftog{font-size:9.5px;padding:0 2px;line-height:1.35}
+.fsub{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:3px;border-top:1px solid var(--line2);padding-top:3px}
+.card .chk{font-size:12px;min-height:16px;color:var(--label)}
+.card .cinfo{font-size:11.5px;line-height:1.38;color:var(--label)}
+.fixedtools{justify-content:center!important;font-size:11px;color:var(--muted);padding:4px 0 2px}
+.in-note{font-size:11.5px}
+/* one parameter per row (all cards except the op-amp) */
+.fg.one{grid-template-columns:1fr;gap:4px}
+.fg.one .fld{display:grid;grid-template-columns:36px 44px auto;justify-content:start;align-items:center;gap:3px}
+.fg.one .fl{display:contents}
+.fg.one .fl i{order:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fg.one .fld input,.fg.one .fld .csel{order:2}
+.fg.one .fld .csel{grid-column:span 2;width:84px}
+.fg.one .fl em{order:3;font-size:11.5px;white-space:nowrap}
+.fg.one .fl .reftog{order:1;justify-self:start}
+.fg.one .chk,.fg.one .fsub{grid-column:auto}
+/* ADC: the derived one of SINAD / ENOB */
+.adc-sinad [data-f="enob"],.adc-enob [data-f="sinad"]{border-style:dashed;color:var(--muted)}
+/* uncommitted numeric edits */
+input.pending,input.pending:focus{border-color:var(--bad)!important;box-shadow:inset 0 0 0 1px var(--bad)!important}
+/* input power sweep */
+.sweep{padding:10px 12px 12px;margin-top:14px}
+.swr{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted)}
+.swr input{width:64px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-size:14px}
+.swr input.bad{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.swgrid{display:grid;grid-template-columns:250px minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:8px;align-items:start}
+.swgrid figure{margin:0;min-width:0}
+.swgrid figcaption{margin:0 4px 4px;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.swgrid svg{display:block;cursor:crosshair;touch-action:pan-y}
+.swgrid svg text{font-family:var(--font);font-variant-numeric:tabular-nums}
+.swleg{margin:6px 4px 0}
+.swleg .legend{gap:3px 12px}
+.swfacts .kv .v{font-size:20px}
+@media (max-width:1100px){.swgrid{grid-template-columns:1fr 1fr}.swfacts{grid-column:span 2}}
+@media (max-width:700px){.swgrid{grid-template-columns:1fr}.swfacts{grid-column:auto}}
+.swplots{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+.swplots figure{margin:0;min-width:0}
+.swplots figcaption{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;margin:0 4px 4px}
+.swplots figcaption b{font-size:14.5px}
+.swplots svg{display:block;cursor:crosshair;touch-action:pan-y}
+.swplots svg text{font-family:var(--font);font-variant-numeric:tabular-nums}
+.cross{stroke:var(--ink);stroke-width:1;stroke-dasharray:2 3;pointer-events:none}
+@media (max-width:1000px){.swplots{grid-template-columns:1fr}}
+@media (max-width:640px){.prow{grid-template-columns:1fr}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <symbol id="s-amp" viewBox="0 0 60 32"><path d="M0 16H18M42 16H60"/><path d="M18 4V28L42 16Z"/></symbol>
+  <symbol id="s-switch" viewBox="0 0 60 32"><path d="M0 20H17M43 20H60M19.5 19L39 8"/><circle cx="17" cy="20" r="2.4"/><circle cx="41" cy="20" r="2.4"/></symbol>
+  <symbol id="s-filter" viewBox="0 0 60 32"><path d="M0 16H15M45 16H60"/><rect x="15" y="3" width="30" height="26" rx="2"/><path d="M20 10q2.5-3.5 5 0t5 0t5 0t5 0M20 16q2.5-3.5 5 0t5 0t5 0t5 0M20 22q2.5-3.5 5 0t5 0t5 0t5 0M27 13l3-6M27 25l3-6"/></symbol>
+  <symbol id="s-mixer" viewBox="0 0 60 32"><path d="M0 13H19M41 13H60M30 24V32"/><circle cx="30" cy="13" r="11"/><path d="M22.5 5.5L37.5 20.5M37.5 5.5L22.5 20.5"/></symbol>
+  <symbol id="s-att" viewBox="0 0 60 32"><path d="M0 16H15M45 16H60"/><rect x="15" y="3" width="30" height="26" rx="2"/><path d="M19 16h3l2-6 3 12 3-12 3 12 3-12 2 6h3"/></symbol>
+  <symbol id="s-adc" viewBox="0 0 60 32"><path d="M0 16H13"/><path d="M13 3H38L48 16L38 29H13Z"/><path d="M18 24h5v-4h5v-4h5v-4h5"/><path d="M48 16H60" stroke-dasharray="2 3"/></symbol>
+  <symbol id="s-sw" viewBox="0 0 60 32"><path d="M0 16H9M51 16H60"/><path d="M12 16L20 9M48 16L40 9"/><circle cx="11" cy="16" r="2"/><circle cx="49" cy="16" r="2"/><path d="M22 8H38M22 24H38" /><circle cx="21" cy="8" r="1.6"/><circle cx="21" cy="24" r="1.6"/><circle cx="39" cy="8" r="1.6"/><circle cx="39" cy="24" r="1.6"/></symbol>
+  <symbol id="s-opa" viewBox="0 0 60 32"><path d="M0 16H18M42 16H60"/><path d="M18 4V28L42 16Z"/><path d="M21 11h5M23.5 8.5v5M21 21h5"/></symbol>
+  <symbol id="s-vga" viewBox="0 0 60 32"><path d="M0 16H18M42 16H60"/><path d="M18 4V28L42 16Z"/><path d="M14 28L40 3M35 3h5v5"/></symbol>
+  <symbol id="s-flp" viewBox="0 0 60 32"><path d="M0 16H15M45 16H60"/><rect x="15" y="3" width="30" height="26" rx="2"/><path d="M19 10H30Q34.5 10 37 23"/></symbol>
+  <symbol id="s-fhp" viewBox="0 0 60 32"><path d="M0 16H15M45 16H60"/><rect x="15" y="3" width="30" height="26" rx="2"/><path d="M41 10H30Q25.5 10 23 23"/></symbol>
+  <symbol id="s-fbp" viewBox="0 0 60 32"><path d="M0 16H15M45 16H60"/><rect x="15" y="3" width="30" height="26" rx="2"/><path d="M19 23Q24 23 26 10H34Q36 23 41 23"/></symbol>
+  <symbol id="s-flp-a" viewBox="0 0 60 32"><path d="M0 16H11M35 16H39M51 16H60"/><rect x="11" y="5" width="24" height="22" rx="2"/><path transform="translate(-4 1) scale(.85)" d="M19 10H30Q34.5 10 37 23"/><path d="M39 9V23L51 16Z"/></symbol>
+  <symbol id="s-fhp-a" viewBox="0 0 60 32"><path d="M0 16H11M35 16H39M51 16H60"/><rect x="11" y="5" width="24" height="22" rx="2"/><path transform="translate(-4 1) scale(.85)" d="M41 10H30Q25.5 10 23 23"/><path d="M39 9V23L51 16Z"/></symbol>
+  <symbol id="s-fbp-a" viewBox="0 0 60 32"><path d="M0 16H11M35 16H39M51 16H60"/><rect x="11" y="5" width="24" height="22" rx="2"/><path transform="translate(-4 1) scale(.85)" d="M19 23Q24 23 26 10H34Q36 23 41 23"/><path d="M39 9V23L51 16Z"/></symbol>
+  <symbol id="s-aaf" viewBox="0 0 60 32"><path d="M0 16H15M45 16H60"/><rect x="15" y="3" width="30" height="26" rx="2"/><path d="M19 10H30Q34.5 10 37 23"/><path d="M19 23H41" stroke-dasharray="1.5 2"/></symbol>
+  <symbol id="s-bal" viewBox="0 0 60 32"><path d="M0 6H22M15 26H22M38 6H60M38 26H60"/><path d="M22 6a3.33 3.33 0 0 1 0 6.67a3.33 3.33 0 0 1 0 6.67a3.33 3.33 0 0 1 0 6.67"/><path d="M38 6a3.33 3.33 0 0 0 0 6.67a3.33 3.33 0 0 0 0 6.67a3.33 3.33 0 0 0 0 6.67"/><path d="M29 4V28M31 4V28"/></symbol>
+  <symbol id="s-iqd" viewBox="0 0 60 32"><path d="M0 16H14"/><circle cx="25" cy="16" r="11"/><path d="M17.5 8.5L32.5 23.5M32.5 8.5L17.5 23.5"/><path d="M36 11H60M36 21H60"/><path d="M25 27V32"/></symbol>
+  <symbol id="s-in" viewBox="0 0 60 32"><circle cx="24" cy="16" r="7.5"/><path d="M31.5 16H60M20.5 16h7M24 12.5v7"/></symbol>
+  <symbol id="s-out" viewBox="0 0 60 32"><path d="M0 16H28.5"/><circle cx="36" cy="16" r="7.5"/><circle cx="36" cy="16" r="1.6"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 34 22" aria-hidden="true"><path d="M1 11H7"/><path d="M7 3V19L19 11Z"/><path d="M19 11H23"/><path d="M23 11q2.5-6 5 0t5 0"/></svg>
+      <h1>RF Cascade Simulator</h1>
+    </div>
+    <div class="namebox"><label for="chainName">Chain name</label><input id="chainName" maxlength="60" autocomplete="off"></div>
+    <div class="actions">
+      <button class="btn icon" id="btnUndo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 16 16"><path d="M5 3L2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H6"/></svg></button>
+      <button class="btn icon" id="btnRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled><svg viewBox="0 0 16 16"><path d="M11 3l3 3-3 3"/><path d="M14 6H6.5a4 4 0 0 0 0 8H10"/></svg></button>
+      <span class="sep" aria-hidden="true"></span>
+      <button class="btn" id="btnNew">New</button>
+      <button class="btn" id="btnLib">Saved chains</button>
+      <button class="btn" id="btnSaveAs">Save as</button>
+      <button class="btn primary" id="btnSave" title="Ctrl+S">Save</button>
+      <button class="btn" id="btnExport" hidden>Download JSON</button>
+      <label class="btn" for="fileIn">Load JSON</label>
+      <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    </div>
+    <div class="status" id="status" role="status"></div>
+  </header>
+
+  <div class="overview">
+    <section class="panel ov setup" aria-label="Analysis setup">
+      <h2>Analysis Setup</h2>
+      <label class="kvin"><span>Input power per tone</span><input id="setPin" data-s="pin" inputmode="decimal" autocomplete="off"><em>dBm</em></label>
+      <label class="kvin"><span>Noise bandwidth</span><input id="setBw" data-s="bw" inputmode="decimal" autocomplete="off"><em>MHz</em></label>
+      <label class="kvin" title="6 dB for two equal tones, 0 dB for a single CW tone, about 10 to 12 dB for OFDM"><span>Peak over input power</span><input id="setPapr" data-s="papr" inputmode="decimal" autocomplete="off"><em>dB</em></label>
+      <label class="kvin"><span>Required SNR</span><input id="setSnr" data-s="snrReq" inputmode="decimal" autocomplete="off"><em>dB</em></label>
+      <label class="kvin" title="Signal frequency after downconversion: the IF for IF sampling, the baseband offset for zero-IF. Used by op-amp bandwidth and slew, and by ADC jitter."><span>IF / baseband frequency</span><input id="setFbb" data-s="fbb" inputmode="decimal" autocomplete="off"><em>MHz</em></label>
+      <p class="hint">Enter applies, ↑/↓ steps 0.5 (Shift: 5), Esc reverts. IMD assumes two equal tones at the input power; peak over input power is 6 dB for two tones, 0 dB for CW, 10 to 12 dB for OFDM.</p>
+    </section>
+    <section class="panel ov" aria-label="Cascade"><h2>Cascade</h2><div id="sumCascade"></div></section>
+    <section class="panel ov" aria-label="Per tone results"><h2>Per Tone</h2><p class="hint" id="toneSub"></p><div id="sumTone"></div></section>
+  </div>
+
+  <section class="panel paths" id="paths" aria-label="Path selection" hidden></section>
+
+  <section class="panel adcp" id="adcPanel" aria-label="ADC check" hidden></section>
+  <p class="insight" id="insight"></p>
+
+  <section class="panel diagram" id="diagWrap" aria-label="System block diagram">
+    <div class="panel-head"><h2>Block Diagram</h2><span class="hint">Blue values on the arrows are the signal level per tone at each output (dBm; in baseband dBm and dBV above the arrow, Vpp below), for the input power set above. Click a block to edit it; click an arm of a switched block to route the signal through it.</span></div>
+    <svg id="diag" role="img" aria-label="System block diagram"></svg>
+  </section>
+
+  <div class="panel board" id="board">
+    <div class="board-inner" id="boardInner">
+      <div class="cards" id="cards"></div>
+
+      <div class="chart-block">
+        <div class="chart-head"><h2>Gain</h2>
+          <div class="legend"><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--gain)" stroke-width="2.4"/></svg>Cumulative (dB): power gain in RF, then + voltage gain in baseband</span><span><svg viewBox="0 0 22 10"><rect x="6" y="0" width="10" height="10" rx="1.5" style="fill:var(--gain)" fill-opacity=".3"/></svg>Stage gain</span></div>
+        </div>
+        <svg class="chart" id="chG" role="img" aria-label="Cumulative gain chart"></svg>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-head"><h2>Noise Figure</h2>
+          <div class="legend"><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--nf)" stroke-width="2.4"/></svg>Cumulative NF (dB)</span><span><svg viewBox="0 0 22 10"><rect x="6" y="0" width="10" height="10" rx="1.5" style="fill:var(--nf)" fill-opacity=".3"/></svg>Stage NF</span></div>
+        </div>
+        <svg class="chart" id="chN" role="img" aria-label="Cumulative noise figure chart"></svg>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-head"><h2>P1dB</h2>
+          <div class="legend"><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--p1)" stroke-width="2.4"/></svg>Input P1dB, referred to chain input (dBm)</span><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--op1)" stroke-width="2.4" stroke-dasharray="5 3"/></svg>Output P1dB at this node (dBm)</span></div>
+        </div>
+        <svg class="chart" id="chP" role="img" aria-label="P1dB chart"></svg>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-head"><h2>IP3</h2>
+          <div class="legend"><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--ip3)" stroke-width="2.4"/></svg>Input IP3, referred to chain input (dBm)</span><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--ip3)" stroke-width="2.4" stroke-dasharray="5 3"/></svg>Output IP3 at this node (dBm)</span></div>
+        </div>
+        <svg class="chart" id="chI" role="img" aria-label="IP3 chart"></svg>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-head"><h2>Signal Level and Headroom</h2>
+          <div class="legend"><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--sig)" stroke-width="2.4"/></svg>Signal per tone (dBm; baseband labels in Vpp)</span><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--muted)" stroke-width="2" stroke-dasharray="5 3"/></svg>Noise floor in bandwidth</span><span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--im)" stroke-width="2" stroke-dasharray="2 3"/></svg>IM3 product</span><span id="lgIm2L"><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--im2)" stroke-width="2" stroke-dasharray="6 2 1 2"/></svg>IM2 product</span><span><svg viewBox="0 0 22 10"><path d="M11 1L15 5L11 9L7 5Z" style="fill:var(--p1)"/></svg>Stage output P1dB / ADC full scale</span><span>Peak HR: headroom from the signal peak (per-tone power + peak factor) to the stage's P1dB or clip</span></div>
+        </div>
+        <svg class="chart" id="chL" role="img" aria-label="Signal level chart"></svg>
+      </div>
+
+      <div class="chart-block">
+        <div class="chart-head"><h2>Contribution by Stage</h2>
+          <div class="legend"><span><svg viewBox="0 0 22 10"><rect x="6" y="0" width="10" height="10" rx="1.5" style="fill:var(--nf)"/></svg>Share of noise (F−1)</span><span><svg viewBox="0 0 22 10"><rect x="6" y="0" width="10" height="10" rx="1.5" style="fill:var(--p1)"/></svg>Share of P1dB limit</span><span><svg viewBox="0 0 22 10"><rect x="6" y="0" width="10" height="10" rx="1.5" style="fill:var(--ip3)"/></svg>Share of IP3 limit</span></div>
+        </div>
+        <svg class="chart" id="chC" role="img" aria-label="Contribution chart"></svg>
+      </div>
+    </div>
+  </div>
+
+  <section class="panel sweep" id="sweep" aria-label="Input power sweep">
+    <div class="panel-head"><h2>Input Power Sweep</h2>
+      <label class="swr">From <input id="swFrom" inputmode="decimal" autocomplete="off" aria-label="Sweep start"> dBm</label>
+      <label class="swr">to <input id="swTo" inputmode="decimal" autocomplete="off" aria-label="Sweep stop"> dBm</label>
+      <button class="btn sm" id="swAuto">Auto range</button>
+      <span class="hint">Hover to read values. Click a plot to use that level as the input power.</span></div>
+    <p class="hint" id="swMsg" hidden></p>
+    <div id="swBody">
+      <div class="swgrid">
+        <div class="swfacts" id="swFacts"></div>
+        <figure id="swFigA"><figcaption><b>Output vs Input Power</b></figcaption>
+          <svg id="swA" role="img" aria-label="Output power versus input power"></svg>
+          <div class="swleg"><span class="legend">
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--sig)" stroke-width="2.4"/></svg>Signal per tone, est. compression (dBV when the chain ends in baseband)</span>
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--sig)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>Linear extrapolation</span>
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--im)" stroke-width="2.4"/></svg>IM3 per tone</span>
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--muted)" stroke-width="2" stroke-dasharray="5 3"/></svg>Output noise floor</span>
+          <span id="lgAdc"><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--bad)" stroke-width="2" stroke-dasharray="6 3"/></svg>ADC full scale</span></span></div></figure>
+        <figure id="swFigB"><figcaption><b>SNR and SNDR vs Input Power</b></figcaption>
+          <svg id="swB" role="img" aria-label="SNR and SNDR versus input power"></svg>
+          <div class="swleg"><span class="legend">
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--sig)" stroke-width="2.4"/></svg>SNR</span>
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--op1)" stroke-width="2.4"/></svg>SNDR (noise + IM3)</span>
+          <span><svg viewBox="0 0 22 10"><path d="M1 5H21" style="stroke:var(--muted)" stroke-width="1.5" stroke-dasharray="5 3"/></svg>Required SNR</span></span></div></figure>
+      </div>
+    </div>
+  </section>
+
+  <div class="notes">
+    <p>Gain adds in dB. NF uses Friis: F = F₁ + (F₂−1)/G₁ + (F₃−1)/(G₁G₂) + … (linear). The ADC enters the cascade as a noise source with NF = P<sub>FS</sub> + 174 − SINAD − 10·log₁₀(f<sub>s</sub>/2); ENOB = (SINAD − 1.76)/6.02, ideal SNR = 6.02·N + 1.76. Clock jitter is assumed negligible.</p>
+    <p>Input P1dB and IIP3: 1/P<sub>in</sub> = Σ G<sub>preceding,i</sub> / P<sub>in,i</sub> (mW, linear). Output P1dB = input P1dB + G − 1 dB; OIP3 = IIP3 + G. IM3 per tone at a node = 3·P<sub>out</sub> − 2·OIP3. SFDR = ⅔·(IIP3 − input noise floor). Empty P1dB or IP3 means ideal.</p>
+    <p>Sweep: the compressed curve is an estimate from the cascade output P1dB (Rapp model, p = 2); IM3 and SNDR use the small-signal intercept model. Noise floor = −174 dBm/Hz + 10·log₁₀(B) + NF + G (290 K). Sensitivity = input noise floor + required SNR. The switch on each card (and on a switched block's header) bypasses it: the part is replaced by an ideal thru so you can compare the chain with and without it. Numeric fields apply on Enter and stay red until applied; ↑/↓ steps 0.5, Shift+↑/↓ steps 5, Esc reverts. Drag a card or a switched block by its handle to reorder; Ctrl+Z / Ctrl+Shift+Z undo and redo.</p>
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<div class="overlay" id="lib" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="libTitle">
+    <div class="sheet-head"><h2 id="libTitle">Saved Chains</h2><button class="btn" id="libClose">Close</button></div>
+    <p class="note" id="libNote"></p>
+    <ul id="libList"></ul>
+    <h2 style="font-size:18px;margin-top:16px">Examples</h2>
+    <ul id="exList" class="exlist"></ul>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const LEFT=60, ADDW=160, MINCOL=151, MAXCOL=200;
+let COL=MINCOL;
+
+const TYPES={
+  amp:   {label:'Amplifier',  def:{g:15,  nf:3,   p1:5,    link:false, ip3:30,  ip3ref:'out'}},
+  switch:{label:'Switch',     def:{g:-0.8,nf:0.8, p1:30,   link:true,  ip3:55,  ip3ref:'in'}},
+  filter:{label:'Filter',     def:{g:-2,  nf:2,   p1:null, link:true,  ip3:null,ip3ref:'in'}},
+  mixer: {label:'Mixer',      def:{g:-7,  nf:7.5, p1:9,    link:false, ip3:18,  ip3ref:'in'}},
+  att:   {label:'Attenuator', def:{g:-6,  nf:6,   p1:30,   link:true,  ip3:45,  ip3ref:'in'}},
+  iqd:   {label:'I/Q mixer', def:{g:-9, nf:9, link:true, p1:13, ip3:25, ip3ref:'in', ip2:55, gimb:0.2, pimb:1.5, zo:50, lo:15}},
+  vga:   {label:'VGA',        def:{gset:10, gmax:26, gmin:-6, nfmax:9.5, nfsl:1, op1:16, ip3:38, ip3ref:'out'}},
+  aaf:   {label:'Baseband filter', def:{tech:'passive', il:1, zf:50, nbw:null, av:1, rt:null, en:4, in_:1, rnet:1000, gbw:500, vsw:4, sr:500, hd3:-85}},
+  bal:   {label:'Balun', def:{il:0.6, ratio:2}},
+  opa:   {label:'Op-amp', def:{topo:'noninv', rf:499, rg:499, rt:null, en:3.6, in_:1, gbw:560, vsw:3.5, sr:2800, hd3:-90}},
+  adc:   {label:'ADC'},
+  sw:    {label:'Switched block'}
+};
+const RF=['amp','switch','filter','mixer','att'];
+const LOSSY=['switch','filter','att'], IDEAL_LIN=['filter','att'];
+const SHORT={amp:'Amplifier',switch:'Switch',filter:'Filter',mixer:'Mixer',att:'Atten.',iqd:'I/Q mixer',vga:'VGA',aaf:'BB filter',bal:'Balun',opa:'Op-amp'};
+const symId=st=>st.type==='aaf'?(st.tech==='active'?'flp-a':'flp'):st.type;
+const ANALOG=['amp','switch','filter','mixer','att','iqd','vga','aaf','bal','opa'];
+const ADD_RF=['amp','switch','filter','mixer','att'], ADD_BB=['aaf','bal','opa'];
+const ADC_DEF={vpp:1.4,rin:100,fs:250,bits:14,sinad:70,sm:'sinad'};
+const sinad2enob=s=>(s-1.76)/6.02, enob2sinad=e=>6.02*e+1.76;
+const SET_DEF={pin:-60,bw:20,papr:6,snrReq:10,fbb:10,swFrom:null,swTo:null};
+const OPTF=['p1','ip3','ip2','vsw','op1','lo','rg','rt','hd3','nbw'];
+const POSF=['vpp','rin','fs','bits','sinad','enob','av','zo','gbw','sr','fc','bw','ratio','fbb','rl','zf','rg','rt','vhd','nbw'];
+const NNEGF=['nf','en','in_','rf','il','nfmax','nfsl','papr','rnet','ilg'];
+const Z0=50, K4T=1.6014e-20, BBTYPES=['opa','aaf','vga','bal'];
+const symSvg=(id,cls)=>`<svg viewBox="0 0 60 32" aria-hidden="true"><use href="#s-${id}" class="su ${cls||''}"/></svg>`;
+const ICON={
+  left:'<svg viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></svg>',
+  right:'<svg viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>',
+  dup:'<svg viewBox="0 0 16 16"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 10.5V4.5A1.5 1.5 0 0 1 4.5 3h6"/></svg>',
+  del:'<svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
+  grip:'<svg viewBox="0 0 10 16"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg>'
+};
+
+const dbl=x=>Math.pow(10,x/10);
+const ldb=x=>10*Math.log10(x);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const mkKey=()=>'k'+Math.random().toString(36).slice(2,9);
+const num=v=>String(Math.round(v*100)/100);
+const fin=v=>v!=null&&isFinite(v);
+function fmt(v,d){ d=d==null?1:d;
+  if(v==null||Number.isNaN(v)) return '–';
+  if(!isFinite(v)) return v>0?'∞':'−∞';
+  let s=(Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toFixed(d);
+  if(/^-0\.?0*$/.test(s)) s=s.slice(1);
+  return s.replace('-','−');
+}
+const sgn=(v,d)=>(v>0?'+':'')+fmt(v,d);
+const trunc=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+
+/* ---------- model ---------- */
+function newStage(type,over){
+  const d=TYPES[type].def;
+  return Object.assign({key:mkKey(),type,name:TYPES[type].label,off:false},JSON.parse(JSON.stringify(d)),over||{});
+}
+function newAdc(over){return Object.assign({key:mkKey(),type:'adc',name:'ADC'},ADC_DEF,over||{});}
+function newSw(over){
+  return Object.assign({key:mkKey(),type:'sw',name:'Switched block',sel:null,
+    swIn:newStage('switch',{name:'SPDT in',g:-0.7,nf:0.7,p1:33,ip3:60}),
+    swOut:newStage('switch',{name:'SPDT out',g:-0.7,nf:0.7,p1:33,ip3:60}),
+    arms:[{stages:[newStage('amp',{name:'LNA',g:18,nf:1.5,p1:-5,ip3:25})]},{stages:[newStage('att',{name:'Pad',g:-10,nf:10,p1:30,ip3:45})]}]},over||{});
+}
+function example(){
+  return {id:null,name:'Example IF-sampling receiver',set:Object.assign({},SET_DEF,{pin:-60,bw:20,papr:6,snrReq:10,fbb:70}),stages:[
+    newStage('switch',{name:'T/R switch',g:-0.6,nf:0.6,p1:30,ip3:55}),
+    newStage('filter',{name:'Preselector',g:-1.5,nf:1.5}),
+    newSw({name:'LNA / bypass',sel:0,arms:[
+      {stages:[newStage('amp',{name:'LNA',g:20,nf:1.2,p1:-8,ip3:22,ip3ref:'out'})]},
+      {stages:[newStage('att',{name:'Bypass pad',g:-10,nf:10,p1:30,ip3:45})]}]}),
+    newStage('filter',{name:'Image filter',g:-2.5,nf:2.5}),
+    newStage('amp',{name:'Gain block',g:15,nf:3.5,p1:2,ip3:30}),
+    newStage('mixer',{name:'Mixer',g:-7,nf:7.5,p1:9,ip3:18}),
+    newStage('amp',{name:'IF amp',g:15,nf:4,p1:0,ip3:28}),
+    newStage('aaf',{name:'IF BPF / AAF',tech:'passive',il:1.5,nbw:41}),
+    newStage('bal',{name:'Balun 1:2',il:0.5,ratio:2}),
+    newStage('opa',{name:'ADC driver',topo:'noninv',rf:402,rg:402,rt:100,en:3.6,in_:1,gbw:560,vsw:3.5,sr:2800,hd3:-82}),
+    newAdc({name:'ADC',vpp:1.7,rin:100,fs:250,bits:14,sinad:68.5})
+  ]};
+}
+function exampleZeroIf(){
+  return {id:null,name:'Example zero-IF receiver',set:Object.assign({},SET_DEF,{pin:-70,bw:10,papr:6,snrReq:10,fbb:2}),stages:[
+    newStage('filter',{name:'Preselector',g:-1.5,nf:1.5}),
+    newStage('amp',{name:'LNA',g:18,nf:1.2,p1:-10,ip3:25}),
+    newStage('filter',{name:'RF BPF',g:-2,nf:2}),
+    newStage('amp',{name:'RF gain',g:15,nf:3,p1:-2,ip3:32}),
+    newStage('mixer',{name:'Passive mixer\nI path of the I/Q mixer',g:-9,link:true,p1:13,ip3:25}),
+    newStage('aaf',{name:'AC coupling',tech:'passive',il:0.1,zf:50,nbw:null}),
+    newStage('opa',{name:'BB LNA',topo:'noninv',rf:500,rg:100,rt:50,en:1.5,in_:2.5,gbw:1500,vsw:4,sr:900,hd3:-98}),
+    newStage('aaf',{name:'Anti-alias LPF',tech:'active',av:1,nbw:8.2,rt:null,en:4,in_:1,rnet:1000,gbw:1000,vsw:4,sr:500,hd3:-90}),
+    newStage('opa',{name:'ADC driver',topo:'noninv',rf:499,rg:499,rt:null,en:3.6,in_:1,gbw:560,vsw:3.5,sr:2800,hd3:-100}),
+    newAdc({name:'ADC',vpp:1.4,rin:100,fs:40,bits:14,sinad:72})
+  ]};
+}
+const nOr=(v,def)=>(typeof v==='number'&&isFinite(v))?v:def;
+const nullOr=(v,def)=>(v===null)?null:(v===undefined?def:nOr(v,def));
+function normStage(s){
+  s=s||{}; const type=ANALOG.includes(s.type)?s.type:'amp', d=TYPES[type].def;
+  let nm=String(s.name==null?TYPES[type].label:s.name).slice(0,200);
+  nm=nm.replace(/^Op-amp \/ FDA/,'Op-amp').replace(/^Balun \/ xfmr/,'Balun').replace(/^I\/Q mixer \(passive\)/,'I/Q mixer');
+  const o={key:mkKey(),type,name:nm,off:!!s.off};
+  Object.keys(d).forEach(k=>{const dv=d[k], v=s[k];
+    if(k==='ip3ref')o[k]=(v==='out'||v==='in')?v:dv;
+    else if(k==='resp')o[k]=(v==='lpf'||v==='hpf'||v==='bpf')?v:dv;
+    else if(k==='tech')o[k]=(v==='passive'||v==='active')?v:dv;
+    else if(k==='topo')o[k]=v==='inv'||v==='fda'?'inv':'noninv';
+    else if(typeof dv==='boolean')o[k]=v==null?dv:!!v;
+    else if(k==='ip3'&&RF.includes(type))o[k]=('ip3' in s)?nullOr(v,null):null;
+    else if(OPTF.includes(k))o[k]=nullOr(v,dv);
+    else o[k]=nOr(v,dv);
+  });
+  if(type==='amp')o.link=false;
+  if(LOSSY.includes(type)){o.link=true;if(o.g>0)o.g=-o.g;}
+  if('nf' in o)o.nf=Math.max(0,o.nf);
+  if(type==='aaf'){
+    if(s.il==null&&typeof s.g==='number')o.il=Math.max(0,-s.g);      // filters saved before v5 stored a gain
+    if(!('nbw' in s)&&typeof s.fc==='number'){                         // pre-v6 response fields -> noise bandwidth
+      const n=Math.min(10,Math.max(1,Math.round(nOr(s.ord,4))));
+      o.nbw=s.resp==='hpf'?null:Math.round((s.resp==='bpf'?nOr(s.bw,s.fc):s.fc)*enbwF(n)*100)/100;}}
+  if(type==='iqd'&&!('link' in s)&&typeof s.g==='number')o.link=false; // older active I/Q demod saves
+  if(type==='opa'&&!('topo' in s)&&typeof s.av==='number'){            // pre-v5 op-amp: Av + Zout + terminated flag
+    const rf=nOr(s.rf,499)||499; o.rf=rf; o.rg=s.av>1?rf/(s.av-1):null; o.rt=s.term?50:null; o.rl=nOr(s.zo,100);}
+  if(type==='aaf'&&('term' in s)){o.rt=s.term?50:null;}
+  if((type==='opa'||type==='aaf')&&!('hd3' in s)){                       // saves with an OIP3 figure: express it as HD3 at 2 Vpp
+    const rl=nOr(s.rl,nOr(s.zo,100)), oi=typeof s.ip3==='number'?s.ip3:null;
+    const vt=hdLevel(o); o.hd3=oi==null?null:Math.round((2*(vppToDbm(vt,rl)-oi)-9.54)*10)/10;}
+  return o;
+}
+function normItem(s){
+  s=s||{};
+  if(s.type==='sw'){
+    const arms=(Array.isArray(s.arms)?s.arms:[]).slice(0,2);
+    while(arms.length<2)arms.push({stages:[]});
+    return {key:mkKey(),type:'sw',name:String(s.name||'Switched block').slice(0,40),sel:(s.sel===0||s.sel===1)?s.sel:null,off:!!s.off,
+      swIn:normStage(Object.assign({type:'switch'},s.swIn)),swOut:normStage(Object.assign({type:'switch'},s.swOut)),
+      arms:arms.map(a=>({stages:(Array.isArray(a&&a.stages)?a.stages:[]).slice(0,20).map(normStage)}))};
+  }
+  if(s.type==='adc'){
+    return {key:mkKey(),type:'adc',name:String(s.name||'ADC').slice(0,40),off:!!s.off,
+      vpp:Math.max(1e-3,nOr(s.vpp,ADC_DEF.vpp)),rin:Math.max(1e-3,nOr(s.rin,ADC_DEF.rin)),fs:Math.max(1e-3,nOr(s.fs,ADC_DEF.fs)),
+      bits:Math.min(32,Math.max(1,Math.round(nOr(s.bits,ADC_DEF.bits)))),sinad:nOr(s.sinad,nOr(s.snr,ADC_DEF.sinad)),sm:s.sm==='enob'?'enob':'sinad'};
+  }
+  return normStage(s);
+}
+function normalize(o){
+  o=o||{};
+  const st=o.set||{};
+  const out={id:typeof o.id==='string'?o.id:null,name:String(o.name==null?'Untitled chain':o.name).slice(0,60),
+    set:{pin:nOr(st.pin,SET_DEF.pin),bw:Math.max(1e-6,nOr(st.bw,SET_DEF.bw)),papr:Math.max(0,nOr(st.papr,SET_DEF.papr)),snrReq:nOr(st.snrReq,SET_DEF.snrReq),fbb:Math.max(1e-6,nOr(st.fbb,SET_DEF.fbb)),swFrom:fin(st.swFrom)?st.swFrom:null,swTo:fin(st.swTo)?st.swTo:null},stages:[]};
+  let adc=null;
+  (Array.isArray(o.stages)?o.stages:[]).slice(0,60).forEach(s=>{const it=normItem(s);if(it.type==='adc'){if(!adc)adc=it;}else out.stages.push(it);});
+  if(adc)out.stages.push(adc);
+  return out;
+}
+function strip(s){
+  if(s.type==='sw')return {type:'sw',name:s.name,sel:s.sel,off:!!s.off,swIn:strip(s.swIn),swOut:strip(s.swOut),arms:s.arms.map(a=>({stages:a.stages.map(strip)}))};
+  if(s.type==='adc')return {type:'adc',name:s.name,off:!!s.off,vpp:s.vpp,rin:s.rin,fs:s.fs,bits:s.bits,sinad:s.sinad,sm:s.sm};
+  const o={type:s.type,name:s.name,off:!!s.off}; Object.keys(TYPES[s.type].def).forEach(k=>{o[k]=s[k];}); return o;
+}
+const reKey=o=>normItem(strip(o));
+const effNF=s=>((s.link||LOSSY.includes(s.type))&&s.type!=='amp')?Math.max(0,-s.g):s.nf;
+const hasAdc=()=>state.stages.some(s=>s.type==='adc');
+function fixAdc(){const i=state.stages.findIndex(s=>s.type==='adc');if(i>=0&&i!==state.stages.length-1){const [a]=state.stages.splice(i,1);state.stages.push(a);}}
+
+function findKey(key){
+  for(let i=0;i<state.stages.length;i++){
+    const it=state.stages[i];
+    if(it.key===key)return {obj:it,arr:state.stages,i,list:'root'};
+    if(it.type==='sw'){
+      if(it.swIn.key===key)return {obj:it.swIn,arr:null,sw:it};
+      if(it.swOut.key===key)return {obj:it.swOut,arr:null,sw:it};
+      for(let a=0;a<2;a++){const j=it.arms[a].stages.findIndex(s=>s.key===key);
+        if(j>=0)return {obj:it.arms[a].stages[j],arr:it.arms[a].stages,i:j,sw:it,arm:a,list:it.key+':'+a};}
+    }
+  }
+  return null;
+}
+function getList(list){
+  if(list==='root')return state.stages;
+  const [k,a]=list.split(':'); const sw=state.stages.find(s=>s.key===k);
+  return sw?sw.arms[+a].stages:null;
+}
+
+/* flatten selected path into analysis columns */
+function flatten(){
+  const entries=[]; let incomplete=null;
+  state.stages.forEach(it=>{
+    if(it.type==='sw'){
+      const go=!!it.off;
+      entries.push({st:it.swIn,kind:'swin',grp:it,off:go||!!it.swIn.off});
+      if(it.sel==null){if(!incomplete&&!go)incomplete=it;}
+      else it.arms[it.sel].stages.forEach(s=>entries.push({st:s,kind:'arm',grp:it,off:go||!!s.off}));
+      entries.push({st:it.swOut,kind:'swout',grp:it,off:go||!!it.swOut.off});
+    } else entries.push({st:it,kind:it.type==='adc'?'adc':'root',off:!!it.off});
+  });
+  return {entries,incomplete};
+}
+const symOf=e=>(e.kind==='swin'||e.kind==='swout')?'switch':symId(e.st);
+let flat={entries:[],incomplete:null};
+const nm1=s=>String(s.name||'').split('\n')[0]||TYPES[s.type].label;
+const colName=k=>{const e=flat.entries[k-1];return `${k}. ${nm1(e.st)}`;};
+
+/* ---------- cascade math ---------- */
+function adcInfo(a){
+  const fsdbm=ldb(Math.pow(a.vpp/(2*Math.SQRT2),2)/a.rin*1000);
+  const nsd=fsdbm-a.snr-ldb(a.fs*1e6/2);
+  return {fsdbm,nsd,nf:Math.max(0,nsd+174),enob:(a.snr-1.76)/6.02};
+}
+// datasheets quote HD at an output a little above half the supply; the supply is taken as swing + 1 V
+const hdLevel=st=>st.vsw==null?2:Math.round(0.55*(st.vsw+1)*10)/10;
+// datasheet-style figures referred to the ADC's own input resistance
+const adcStd=st=>{const fsR=ldb(Math.pow(st.vpp/(2*Math.SQRT2),2)/st.rin*1000), nsdFS=-st.sinad-ldb(st.fs*1e6/2);
+  return {fsRin:fsR,nsdFS,nsdDbm:fsR+nsdFS,nfStd:fsR+nsdFS+174,ideal:6.02*st.bits+1.76};};
+const vppToDbm=(vpp,z)=>ldb(Math.pow(vpp/(2*Math.SQRT2),2)/z*1000);
+const dbmToVpp=(dbm,z)=>2*Math.SQRT2*Math.sqrt(dbl(dbm)/1000*z);
+function fmtV(v){if(!fin(v))return '–';if(v>=1)return v.toFixed(2)+' Vpp';if(v>=1e-3)return (v*1e3).toPrecision(3)+' mVpp';return (v*1e6).toPrecision(3)+' µVpp';}
+function aafAtt(st,fM){const n=Math.max(1,Math.round(st.ord));let x;
+  if(st.resp==='bpf'){if(!(fM>0))return Infinity;x=Math.abs(fM/st.fc-st.fc/fM)*st.fc/st.bw;}
+  else if(st.resp==='hpf'){if(!(fM>0))return Infinity;x=st.fc/fM;}
+  else x=fM/st.fc;
+  return ldb(1+Math.pow(x,2*n));}
+function enbwF(n){n=Math.max(1,Math.round(n));const a=Math.PI/(2*n);return a/Math.sin(a);}
+const KT=K4T/4;
+const srcTxt=s=>s.kind==='v'?'driven by an op-amp output':`driven by a ${fmt(s.r,0)} Ω source`;
+// Op-amp based stage in the voltage domain. Entering from a Z source (mixer port, passive filter) the stage sees a
+// Thevenin source: optional shunt Rt, then the amplifier. Driven by another op-amp it sees an (almost) ideal voltage.
+function opModel(st,ctx,fM,o){
+  const src=ctx.src, entry=src.kind==='z';
+  let Rth, k=1, eT2=0, ref2, zref;
+  if(entry){const Rs=src.r, Rt=st.rt; k=Rt==null?1:Rt/(Rs+Rt); Rth=Rt==null?Rs:Rs*Rt/(Rs+Rt);
+    eT2=Rt==null?0:K4T*Rt*Math.pow(Rs/(Rs+Rt),2); ref2=K4T*Rs*k*k; zref=Rs;}
+  else {Rth=src.r||0; zref=ctx.zref||Z0; ref2=KT*zref;}
+  const en=st.en*1e-9, inn=st.in_*1e-12;
+  let av0, av, ng, e2, rin;
+  if(o.kind==='filter'){
+    av0=st.av; av=st.av; ng=Math.max(1,st.av);
+    const R=st.rnet; e2=en*en+Math.pow(inn*R,2)+2*K4T*R+Math.pow(inn*Rth,2);
+    rin=st.rt==null?Infinity:st.rt;
+  } else if(st.topo==='inv'||st.topo==='fda'){
+    const fda=st.topo==='fda', rg=st.rg==null?st.rf:st.rg, ri=rg+(fda?Rth/2:Rth), rf=Math.max(1e-3,st.rf);
+    av0=rf/rg; av=rf/ri; ng=1+rf/ri; const m=fda?2:1;
+    e2=en*en*Math.pow((ri+rf)/rf,2)+m*K4T*rf*Math.pow(ri/rf,2)+m*K4T*rg+m*Math.pow(inn*ri,2);
+    const rgIn=fda?2*rg:rg; rin=st.rt==null?rgIn:st.rt*rgIn/(st.rt+rgIn);
+  } else {
+    const rpar=st.rg==null?st.rf:st.rf*st.rg/(st.rf+st.rg);
+    av0=st.rg==null?1:1+st.rf/st.rg; av=av0; ng=av0;
+    e2=en*en+Math.pow(inn*Rth,2)+Math.pow(inn*rpar,2)+K4T*rpar;
+    rin=st.rt==null?Infinity:st.rt;
+  }
+  const f3=st.gbw/ng, roll=o.kind==='filter'?1:1/Math.sqrt(1+Math.pow(fM/f3,2)), at=o.at||0;
+  const avf=av*roll*Math.pow(10,-at/20);
+  const g=20*Math.log10(avf*(entry?2*k:1));
+  const F=1+(eT2+e2)/ref2;
+  const vslew=fM>0?2*st.sr/(2*Math.PI*fM):Infinity, vsw=st.vsw==null?Infinity:st.vsw, vmax=Math.min(vsw,vslew);
+  const clip=isFinite(vmax)?vppToDbm(vmax,zref):null;
+  // HD at a stated single-tone output Vpp -> intercepts (weak-nonlinearity model): IM3 = HD3 + 9.54 dB, IM2 = HD2 + 6.02 dB
+  const vhd=hdLevel(st), pt=vppToDbm(vhd,zref);
+  const oip3=st.hd3==null?null:pt+(Math.abs(st.hd3)-9.54)/2, oip2=null;
+  return {g,nf:ldb(F),p1:clip==null?null:clip-g,ip3:oip3==null?null:oip3-g,ip2:oip2==null?null:oip2-g,oip3,oip2,zout:zref,zin:ctx.zin,zrefNew:zref,
+    srcOut:{kind:'v',r:0},entry,k,av,av0,avf,f3,vmax,slewLim:vslew<vsw,vin:isFinite(vmax)?vmax/avf:null,enIn:Math.sqrt(e2),rin,
+    inTxt:entry?`${srcTxt(src)}, ${st.rt==null?'no termination (high-Z)':'R<sub>t</sub> '+fmt(st.rt,0)+' Ω'}`:srcTxt(src)+(Rth>0?` (R<sub>th</sub> ${fmt(Rth,0)} Ω)`:'')};
+}
+function sp(st,off,ctx){
+  ctx=Object.assign({zin:Z0,src:{kind:'z',r:Z0},zref:null},ctx||{});
+  const zin=ctx.zin, fM=(ctx.f!=null)?ctx.f:state.set.fbb, src=ctx.src, vdom=src.kind==='v';
+  if(off)return {g:0,nf:0,p1:null,ip3:null,ip2:null,off:true,zout:zin,zin,srcOut:src};
+  const ip3in=(v,g,ref)=>v==null?null:(ref==='out'?v-g:v);
+  const vF=(g,e2out)=>1+e2out/dbl(g)/(KT*ctx.zref);       // F of a voltage-domain block from its output noise
+  switch(st.type){
+    case 'adc':{
+      const vfs=st.vpp/(2*Math.SQRT2);
+      let fsdbm, iface;
+      if(vdom){fsdbm=vppToDbm(st.vpp,ctx.zref);iface='driven by an op-amp output (voltage)';}
+      else {const Rs=src.r, Rin=st.rin; fsdbm=ldb(Math.pow(vfs*(Rs+Rin)/Rin,2)/(4*Rs)*1000);
+        iface=`${fmt(Rs,0)} Ω source into R<sub>in</sub> ${fmt(Rin,0)} Ω`+(Math.abs(Rs-Rin)/Rin>0.02?` (divider ${fmt(20*Math.log10(Rin/(Rs+Rin))+6.0206,1)} dB vs. matched)`:'');}
+      // noise from SINAD (harmonics counted as noise: slightly pessimistic)
+      const nHz=fsdbm-st.sinad-ldb(st.fs*1e6/2);
+      const a={fsdbm,nHz,nf:ldb(1+dbl(nHz+174)),enob:sinad2enob(st.sinad),iface,...adcStd(st)};
+      return {g:0,nf:a.nf,p1:null,ip3:null,adc:a,zout:zin,zin,srcOut:src};}
+    case 'bal':{const g=-st.il;
+      if(vdom){const gv=g+ldb(st.ratio);return {g:gv,nf:st.il,p1:null,ip3:null,zout:zin,zin,av:Math.pow(10,gv/20),srcOut:src};}
+      return {g,nf:st.il,p1:null,ip3:null,zout:zin*st.ratio,zin,av:Math.sqrt(st.ratio)*Math.pow(10,g/20),srcOut:{kind:'z',r:zin*st.ratio}};}
+    case 'opa':return opModel(st,ctx,fM,{kind:'amp'});
+    case 'aaf':{const bwF=st.nbw;   // the signal is assumed to be in the passband; only the noise bandwidth matters
+      if(st.tech==='active'){const p=opModel(st,ctx,fM,{kind:'filter'});
+        return Object.assign(p,{bwN:bwF==null?1.5708*p.f3:Math.min(bwF,1.5708*p.f3)});}
+      if(vdom){const g=-st.il-6.0206;   // back-terminated by Z, loaded by Z: 6 dB divider + termination noise
+        return {g,nf:ldb(vF(g,K4T*st.zf/2)),p1:null,ip3:null,zout:zin,zin,bwN:bwF,srcOut:{kind:'v',r:st.zf/2},backTerm:true};}
+      const g=-st.il;return {g,nf:Math.max(0,-g),p1:null,ip3:null,zout:zin,zin,bwN:bwF,srcOut:src};}
+    case 'vga':{const lo=Math.min(st.gmin,st.gmax),hi=Math.max(st.gmin,st.gmax),g=Math.min(hi,Math.max(lo,st.gset));
+      const nf=st.nfmax+st.nfsl*(hi-g);
+      return {g,nf,p1:st.op1==null?null:st.op1-g+1,ip3:ip3in(st.ip3,g,st.ip3ref),zout:zin,zin,gclamped:g!==st.gset,srcOut:vdom?{kind:'v',r:0}:src};}
+    case 'iqd':{const e=Math.pow(10,st.gimb/20),ph=st.pimb*Math.PI/180,c=2*e*Math.cos(ph);
+      const irr=ldb((1+c+e*e)/Math.max(1e-30,1-c+e*e));
+      return {g:st.g,nf:st.link?Math.max(0,-st.g):st.nf,p1:st.p1,ip3:ip3in(st.ip3,st.g,st.ip3ref),ip2:st.ip2,zout:st.zo,zin,irr,srcOut:{kind:'z',r:st.zo}};}
+    default: {const id=IDEAL_LIN.includes(st.type);return {g:st.g,nf:effNF(st),p1:id?null:st.p1,ip3:id?null:ip3in(st.ip3,st.g,st.ip3ref),zout:zin,zin,srcOut:src};}
+  }
+}
+function compute(entries){
+  const S=state.set, B=S.bw*1e6, kTB=-174+ldb(B), fM=S.fbb;
+  const nodes=[{g:0,nf:0,F:1,ip1:Infinity,op1:Infinity,iip3:Infinity,oip3:Infinity,iip2:Infinity,oip2:Infinity,sig:S.pin,noise:kTB,noiseTh:kTB,snr:S.pin-kTB,
+    im3:null,imd:null,im2:null,imd2:null,hr:null,own:null,z:Z0,vrms:Math.sqrt(dbl(S.pin)/1000*Z0),jit:null,bb:false}];
+  nodes[0].vpp=nodes[0].vrms*2*Math.SQRT2;
+  let G=0,F=1,iP=0,iI=0,i2=0,z=Z0,src={kind:'z',r:Z0},zref=null,bAl=null,irr=null,alias=null; const terms=[], byKey={};
+  // RF / baseband boundary: output of the first (active) mixer or I/Q mixer; without one, the input of the first baseband block
+  let bnd=null;
+  entries.forEach((e,i)=>{if(bnd==null&&!e.off&&BBTYPES.includes(e.st.type))bnd=i;});
+  entries.forEach((e,i)=>{
+    const ctx={zin:z,f:fM,src,zref};
+    const p=sp(e.st,e.off,ctx), gb=dbl(G), sigIn=S.pin+G;
+    byKey[e.st.key]={p:e.off?sp(e.st,false,ctx):p,zin:z,src,gBefore:G,bb:bnd!=null&&i>=bnd,col:i+1};
+    let tA=0;
+    if(p.adc){const half=e.st.fs/2;
+      if(bAl!=null){const pen=Math.max(0,ldb(bAl/half));tA=F*(dbl(pen)-1);F+=tA;alias={b:bAl,pen};} else alias={b:null,pen:0};}
+    const tF=(dbl(p.nf)-1)/gb; F+=tF;
+    const tP=fin(p.p1)?gb/dbl(p.p1):0; iP+=tP;
+    const tI=fin(p.ip3)?gb/dbl(p.ip3):0; iI+=tI;
+    if(fin(p.ip2))i2+=Math.sqrt(gb/dbl(p.ip2));
+    if(fin(p.bwN))bAl=bAl==null?p.bwN:Math.min(bAl,p.bwN);
+    if(p.irr!=null)irr=irr==null?p.irr:Math.min(irr,p.irr);
+    G+=p.g;
+    if(p.srcOut&&p.srcOut.kind==='v'){if(zref==null)zref=p.zrefNew||z; z=zref;} else z=p.zout||z;
+    src=p.srcOut||src;
+    if(zref!=null&&src.kind==='z'){src={kind:'v',r:src.r||0};z=zref;}   // once in the voltage domain, stay there
+    const nf=ldb(F), ip1=iP>0?-ldb(iP):Infinity, iip3=iI>0?-ldb(iI):Infinity, iip2=i2>0?-20*Math.log10(i2):Infinity;
+    const sig=S.pin+G, noiseTh=kTB+nf+G, oip3=iip3+G, oip2=iip2+G;
+    const noise=noiseTh, jit=null;
+    let hr=null, own=null;
+    if(p.adc){hr=p.adc.fsdbm-(sigIn+S.papr);own=p.adc.fsdbm;}
+    else if(fin(p.p1)){hr=p.p1-(sigIn+S.papr);own=p.p1+p.g-1;}
+    const vrms=Math.sqrt(dbl(sig)/1000*z);
+    nodes.push({g:G,nf,F,ip1,op1:ip1+G-1,iip3,oip3,iip2,oip2,sig,noise,noiseTh,snr:sig-noise,
+      im3:isFinite(oip3)?3*sig-2*oip3:null,imd:isFinite(oip3)?2*(oip3-sig):null,
+      im2:isFinite(oip2)?2*sig-oip2:null,imd2:isFinite(oip2)?oip2-sig:null,hr,own,p,z,vrms,vpp:vrms*2*Math.SQRT2,
+      en:Math.sqrt(dbl(noiseTh)/1000/B*z),jit,bb:bnd!=null&&i+1>bnd,vdom:src.kind==='v'});
+    terms.push({f:tF+tA,p:tP,i:tI});
+  });
+  const n=nodes.length-1, L=nodes[n], Fx=F-1;
+  // gain as shown to the user: power gain up to the boundary, then + voltage gain
+  nodes.forEach((nd,k)=>{nd.gShow=(bnd==null||k<=bnd)?nd.g:nodes[bnd].g+20*Math.log10(nd.vrms/nodes[bnd].vrms);
+    nd.gStage=k===0?null:(bnd==null||k<=bnd)?nd.p.g:20*Math.log10(nd.vrms/nodes[k-1].vrms);});
+  const sh={nf:terms.map(t=>Fx>1e-12?t.f/Fx:0),p1:terms.map(t=>iP>0?t.p/iP:0),ip3:terms.map(t=>iI>0?t.i/iI:0)};
+  const argmax=a=>{let b=-1,v=0;a.forEach((x,i)=>{if(x>v){v=x;b=i;}});return {col:b+1,v};};
+  let jump={col:-1,d:0};
+  for(let k=1;k<=n;k++){const d=nodes[k].nf-nodes[k-1].nf;if(d>jump.d)jump={col:k,d};}
+  let worst=null; for(let k=1;k<=n;k++){const hh=nodes[k].hr;if(hh!=null&&(worst==null||hh<worst.hr))worst={col:k,hr:hh};}
+  const inNoise=kTB+L.nf;
+  const le=entries[n-1], endIdx=(le&&le.kind==='adc')?n-1:n;
+  const res={nodes,last:L,kTB,sh,jump,worst,limP:argmax(sh.p1),limI:argmax(sh.ip3),topNF:argmax(sh.nf),byKey,irr,bnd,
+    gRF:bnd!=null?nodes[bnd].g:null, gBB:bnd!=null&&endIdx>bnd?20*Math.log10(nodes[endIdx].vrms/nodes[bnd].vrms):(bnd!=null?0:null),
+    sfdr:isFinite(L.iip3)&&n?(2/3)*(L.iip3-inNoise):null, sens:inNoise+S.snrReq, adc:null};
+  if(le&&le.kind==='adc'&&!le.off){
+    const a=nodes[n].p.adc, before=nodes[n-1], st=le.st, fsHz=st.fs*1e6;
+    const adcNoise=a.nHz+ldb(B);
+    const dbfs=before.sig-a.fsdbm;
+    res.adc={fs:a.fsdbm,fsVpp:st.vpp,rin:st.rin,iface:a.iface,mismatch:false,
+      sigVpp:st.vpp*Math.pow(10,dbfs/20),enob:a.enob,nfAdc:a.nf,dbfs,peakHr:a.fsdbm-(before.sig+S.papr),
+      front:before.noise+(alias?alias.pen:0),adcNoise,margin:before.noise+(alias?alias.pen:0)-adcNoise,nfDeg:L.nf-before.nf,snrOut:L.snr,
+      maxIn:a.fsdbm-before.g-S.papr,bwWarn:B>fsHz/2,gBefore:before.g,alias,jit:L.jit};
+    res.adc.dr=res.adc.maxIn-res.sens;
+  }
+  return res;
+}
+
+/* ---------- state + draft ---------- */
+let state=null, dirty=false, lastR=null;
+const DKEY='rfcascade:draft', LKEY='rfcascade:chains';
+const snapObj=()=>({id:state.id,name:state.name,set:state.set,stages:state.stages.map(strip)});
+function readDraft(){try{const t=localStorage.getItem(DKEY);if(!t)return null;const o=JSON.parse(t);
+  if(!o.id&&(o.name==='Örnek alıcı zinciri'||o.name==='Example receiver chain'))return null;
+  const n=normalize(o);dirty=!!o.dirty;return n;}catch(e){return null;}}
+let draftT=0;
+function scheduleDraft(){clearTimeout(draftT);draftT=setTimeout(writeDraft,350);}
+function writeDraft(){try{localStorage.setItem(DKEY,JSON.stringify(Object.assign(snapObj(),{dirty})));}catch(e){}}
+
+/* ---------- undo / redo ---------- */
+let hist={u:[],r:[],cur:null}, commitT=0;
+const snap=()=>JSON.stringify({name:state.name,set:state.set,stages:state.stages.map(strip)});
+function updUndo(){$('#btnUndo').disabled=!hist.u.length&&!commitT;$('#btnRedo').disabled=!hist.r.length;}
+function resetHist(){clearTimeout(commitT);commitT=0;hist={u:[],r:[],cur:snap()};updUndo();}
+function commit(){clearTimeout(commitT);commitT=0;const s=snap();
+  if(s!==hist.cur){hist.u.push(hist.cur);if(hist.u.length>200)hist.u.shift();hist.cur=s;hist.r=[];}
+  updUndo();}
+function scheduleCommit(delay){clearTimeout(commitT);commitT=0;if(!delay){commit();return;}commitT=setTimeout(commit,delay);updUndo();}
+function restore(s){
+  const n=normalize(Object.assign(JSON.parse(s),{id:state.id}));
+  state.stages=n.stages; state.name=n.name; state.set=n.set;
+  dirty=true; full(); scheduleDraft(); updUndo();
+}
+function undo(){commit();if(!hist.u.length)return;hist.r.push(hist.cur);hist.cur=hist.u.pop();restore(hist.cur);setStatus('Undone','');}
+function redo(){commit();if(!hist.r.length)return;hist.u.push(hist.cur);hist.cur=hist.r.pop();restore(hist.cur);setStatus('Redone','');}
+$('#btnUndo').addEventListener('click',undo);
+$('#btnRedo').addEventListener('click',redo);
+
+/* ---------- storage backends ---------- */
+const local={
+  where:'in this browser',
+  _read(){try{return JSON.parse(localStorage.getItem(LKEY)||'{}')||{};}catch(e){return {};}},
+  async list(){const m=this._read();return Object.keys(m).map(id=>Object.assign({id},m[id]));},
+  async save(id,doc){const m=this._read();m[id]=doc;try{localStorage.setItem(LKEY,JSON.stringify(m));}catch(e){throw new Error('browser storage is unavailable');}},
+  async remove(id){const m=this._read();delete m[id];try{localStorage.setItem(LKEY,JSON.stringify(m));}catch(e){}}
+};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function retry(f){try{return await f();}catch(e){if(e&&e.code==='unavailable'){await sleep(400+Math.random()*600);return f();}throw e;}}
+function makeDb(db,uid){
+  const col=db.collection('data/users/'+uid);
+  let q=Promise.resolve();
+  const serial=fn=>(q=q.then(fn,fn));
+  return {
+    where:'to your account',
+    async list(){const s=await retry(()=>col.get());return s.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));},
+    save(id,doc){return serial(()=>retry(()=>col.doc(id).set(doc)));},
+    remove(id){return serial(()=>retry(()=>col.doc(id).delete()));}
+  };
+}
+let backend=local, downloads=null;
+
+/* ---------- layout ---------- */
+const board=$('#board'), inner=$('#boardInner'), cardsEl=$('#cards');
+function layout(){
+  flat=flatten();
+  const N=flat.entries.length;
+  const avail=board.clientWidth-2;
+  COL=Math.max(MINCOL,Math.min(MAXCOL,Math.floor((avail-LEFT-ADDW)/(N+1))));
+  const root=document.documentElement.style;
+  root.setProperty('--col',COL+'px');
+  root.setProperty('--gh',state.stages.some(s=>s.type==='sw')?'46px':'0px');
+  inner.style.width=(LEFT+(N+1)*COL+ADDW)+'px';
+}
+
+/* ---------- numeric fields: Enter to apply, arrows to step ---------- */
+let committing=false;
+const NUM_POS=POSF, NUM_NONNEG=NNEGF;
+const isNum=el=>!!el&&el.tagName==='INPUT'&&el.type!=='checkbox'&&!el.disabled&&
+  ((el.dataset.f&&el.dataset.f!=='link')||!!el.dataset.s||el.id==='swFrom'||el.id==='swTo');
+function markPending(el){
+  const cv=el.dataset.cv!=null?el.dataset.cv:el.defaultValue;
+  if(el.value===cv){el.classList.remove('pending','bad');}else el.classList.add('pending');
+}
+function commitField(el){
+  committing=true;
+  try{el.dispatchEvent(new Event('input',{bubbles:true}));}finally{committing=false;}
+  if(el.classList.contains('bad')){el.classList.add('pending');return false;}
+  el.classList.remove('pending'); el.dataset.cv=el.value; return true;
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('cname')){e.preventDefault();
+  if(e.shiftKey&&e.target.tagName==='DIV'){document.execCommand('insertText',false,'\n');} else e.target.blur();}},true);
+document.addEventListener('focusin',e=>{
+  const el=e.target; if(!isNum(el))return;
+  el.setAttribute('enterkeyhint','done');
+  if(!el.classList.contains('pending')&&!el.classList.contains('bad'))el.dataset.cv=el.value;
+});
+document.addEventListener('keydown',e=>{
+  const el=e.target; if(!isNum(el)||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='Enter'){
+    e.preventDefault();
+    if(!commitField(el))setStatus('That value is not valid. Fix the red field and press Enter.','bad');
+  } else if(e.key==='Escape'){
+    if(el.dataset.cv!=null&&(el.classList.contains('pending')||el.classList.contains('bad'))){
+      e.preventDefault(); e.stopPropagation(); el.value=el.dataset.cv; el.classList.remove('pending','bad');}
+  } else if(e.key==='ArrowUp'||e.key==='ArrowDown'){
+    const v=parseVal(el.value); if(!isFinite(v))return;
+    e.preventDefault();
+    const k=el.dataset.f||el.dataset.s;
+    let nv=Math.round((v+(k==='ord'||k==='bits'?1:(e.shiftKey?5:0.5))*(e.key==='ArrowUp'?1:-1))*100)/100;
+    if(k==='ord'){nv=Math.round(nv);if(nv<1||nv>10)return;}
+    if(k==='bits'){nv=Math.round(nv);if(nv<1||nv>32)return;}
+    if(NUM_NONNEG.includes(k))nv=Math.max(0,nv);
+    if(NUM_POS.includes(k)&&nv<=0)return;
+    el.value=num(nv); el.classList.remove('bad'); commitField(el);
+  }
+},true);
+
+/* ---------- analysis setup ---------- */
+document.querySelectorAll('.setup input').forEach(inp=>{
+  inp.addEventListener('input',()=>{
+    if(!committing){markPending(inp);return;}
+    const k=inp.dataset.s, v=parseVal(inp.value);
+    const ok=isFinite(v)&&((k!=='bw'&&k!=='fbb')||v>0)&&(k!=='papr'||v>=0);
+    inp.classList.toggle('bad',!ok); if(!ok)return;
+    state.set[k]=v; changed(false);
+  });
+});
+function fillSetup(){
+  const s=state.set;
+  $('#setPin').value=num(s.pin);$('#setBw').value=num(s.bw);$('#setPapr').value=num(s.papr);$('#setSnr').value=num(s.snrReq);$('#setFbb').value=num(s.fbb);
+  document.querySelectorAll('.setup input').forEach(i=>i.classList.remove('bad'));
+  $('#swFrom').value=s.swFrom==null?'':num(s.swFrom); $('#swTo').value=s.swTo==null?'':num(s.swTo);
+  $('#swFrom').classList.remove('bad'); $('#swTo').classList.remove('bad');
+}
+
+/* ---------- path selection ---------- */
+function pathMetrics(sw,a){
+  const old=sw.sel; sw.sel=a; const f=flatten(); sw.sel=old;
+  if(f.incomplete)return null;
+  const r=compute(f.entries); return r.last;
+}
+function renderPaths(){
+  const sws=state.stages.filter(s=>s.type==='sw'), el=$('#paths');
+  if(!sws.length){el.hidden=true;return;}
+  el.hidden=false;
+  const ask=sws.some(s=>s.sel==null&&!s.off);
+  el.classList.toggle('ask',ask);
+  let h=`<div class="panel-head"><h2>Path Selection</h2><span class="hint">${ask?'Choose which arm the signal takes through each switched block. The analysis runs on the chosen path.':'The analysis runs on the highlighted arms. Each option shows the full-chain result if you pick it.'}</span></div>`;
+  sws.forEach(sw=>{
+    h+=`<div class="prow"><div class="pname">${esc(sw.name||'Switched block')}${sw.off?'<small style="color:var(--warn)">Block bypassed (thru)</small>':sw.sel==null?'<small style="color:var(--warn)">No arm chosen yet</small>':''}</div><div class="popts">`;
+    [0,1].forEach(a=>{
+      const st=sw.arms[a].stages, desc=st.length?st.map(nm1).join(', '):'Thru';
+      const m=pathMetrics(sw,a);
+      const met=m?`G ${fmt(m.g,1)} dB, NF ${fmt(m.nf,2)} dB, IIP3 ${fmt(m.iip3,1)} dBm`:'Choose the other blocks to compare';
+      h+=`<button class="popt${sw.sel===a?' on':''}" data-psel="${sw.key}:${a}" aria-pressed="${sw.sel===a}"><b>Arm ${a?'B':'A'}</b><span>${esc(trunc(desc,60))}</span><small>${met}</small></button>`;
+    });
+    h+='</div></div>';
+  });
+  el.innerHTML=h;
+}
+function selectArm(key,a){const sw=state.stages.find(s=>s.key===key);if(!sw||sw.sel===a)return;sw.sel=a;changed(true);
+  setStatus(`Signal now goes through arm ${a?'B':'A'} of “${sw.name}”`,'');}
+$('#paths').addEventListener('click',e=>{const b=e.target.closest('[data-psel]');if(!b)return;const [k,a]=b.dataset.psel.split(':');selectArm(k,+a);});
+
+/* ---------- block diagram ---------- */
+const fmtU=x=>x==null||!isFinite(x)?'∞':String(parseFloat(Number(x).toPrecision(4))).replace('-','−');
+function plines(st){
+  const bk=lastR&&lastR.byKey&&lastR.byKey[st.key], p=bk?bk.p:sp(st,false,{zin:Z0});
+  const nd=bk&&lastR.nodes[bk.col], gs=nd&&nd.gStage!=null?nd.gStage:p.g;
+  const G='var(--gain)',NF='var(--nf)',P1='var(--p1)',I3='var(--ip3)',INK='var(--ink)';
+  const c=(x,d)=>x==null||!fin(x)?'∞':fmt(x,d==null?1:d);
+  const ip3out=p.ip3==null?null:p.ip3+p.g;
+  switch(st.type){
+    case 'adc':{const a=adcStd(st);return [['FS',fmtU(st.vpp),'Vpp',P1],['fs',fmtU(st.fs),'MS/s',INK],['SINAD',fmtU(Math.round(st.sinad*100)/100),'dBFS',INK],['NF',c(a.nfStd),'dB',NF]];}
+    case 'bal':return [['G',c(gs),'dB',G],['NF',fmtU(st.il),'dB',NF],['Ratio','1:'+fmtU(st.ratio),'',INK]];
+    case 'opa':return [['G',c(gs),'dB',G],['NF',c(p.nf),'dB',NF],['IP1dB',c(p.p1),'dBm',P1],['OIP3',c(ip3out),'dBm',I3]];
+    case 'aaf':{const nb=['Noise BW',st.nbw==null?'–':fmtU(st.nbw),st.nbw==null?'':'MHz',INK];
+      return st.tech==='active'?[['G',c(gs),'dB',G],['NF',c(p.nf),'dB',NF],['IP1dB',c(p.p1),'dBm',P1],nb]:[['G',c(gs),'dB',G],['NF',c(p.nf),'dB',NF],nb];}
+    case 'vga':return [['G',c(gs),'dB',G],['NF',c(p.nf),'dB',NF],['IP1dB',c(p.p1),'dBm',P1],['OIP3',c(ip3out),'dBm',I3]];
+    case 'iqd':return [['G',fmtU(st.g),'dB',G],['NF',fmtU(p.nf),'dB',NF],['IIP2',fmtU(st.ip2),'dBm',I3],['IRR',c(p.irr),'dB',INK]];
+  }
+  if(IDEAL_LIN.includes(st.type))return [['IL',fmtU(-st.g),'dB',G],['NF',fmtU(effNF(st)),'dB',NF]];
+  if(st.type==='switch')return [['IL',fmtU(-st.g),'dB',G],['NF',fmtU(effNF(st)),'dB',NF],['IP1dB',fmtU(st.p1),'dBm',P1],[st.ip3ref==='out'?'OIP3':'IIP3',fmtU(st.ip3),'dBm',I3]];
+  return [['G',fmtU(st.g),'dB',G],['NF',fmtU(effNF(st)),'dB',NF],['IP1dB',fmtU(st.p1),'dBm',P1],[st.ip3ref==='out'?'OIP3':'IIP3',fmtU(st.ip3),'dBm',I3]];
+}
+function textBlock(x,y,name,lines){
+  let h=`<g transform="translate(${x} 0)"><text class="dname" x="0" y="${y}" text-anchor="middle">${esc(trunc(name,18))}</text>`;
+  lines.forEach((l,i)=>{h+=`<text class="dp" x="0" y="${y+18+i*16}" text-anchor="middle"><tspan class="dlab">${l[0]} </tspan><tspan style="fill:${l[3]}">${l[1]}</tspan><tspan class="dlab"> ${l[2]}</tspan></text>`;});
+  return h+'</g>';
+}
+function renderDiagram(r){
+  const svg=$('#diag');
+  const w=Math.max(280,$('#diagWrap').clientWidth-24);
+  const CW=150, PAD=14, LY=56, RH=212, ARMB=166, RHS=RH+ARMB, SW=76, SH=40;
+  const per=Math.max(3,Math.floor(w/118));
+  const units=[{k:'in',w:1}]; let col=0;
+  state.stages.forEach(it=>{
+    if(it.type==='sw'){
+      const m=Math.max(1,it.arms[0].stages.length,it.arms[1].stages.length);
+      const u={k:'sw',it,w:m+2,inCol:++col};
+      u.armCols=it.sel!=null?it.arms[it.sel].stages.map(()=>++col):[];
+      u.outCol=++col; units.push(u);
+    } else units.push({k:'st',st:it,w:1,col:++col});
+  });
+  units.push({k:'out',w:1});
+  const rows=[]; let cur={units:[],cells:0,sw:false};
+  units.forEach(u=>{if(cur.units.length&&cur.cells+u.w>per){rows.push(cur);cur={units:[],cells:0,sw:false};}
+    u.c0=cur.cells;cur.units.push(u);cur.cells+=u.w;if(u.k==='sw')cur.sw=true;});
+  rows.push(cur);
+  let y=0; rows.forEach(rw=>{rw.top=y;rw.h=rw.sw?RHS:RH;y+=rw.h;rw.units.forEach(u=>{u.top=rw.top;u.rh=rw.h;u.ly=rw.top+LY;});});
+  const maxCells=Math.max(...rows.map(r=>r.cells)), VW=maxCells*CW+PAD*2, VH=y+4;
+  svg.setAttribute('viewBox',`0 0 ${VW} ${VH}`); svg.style.maxWidth=VW+'px';
+  const cxc=c=>PAD+c*CW+CW/2;
+  units.forEach(u=>{u.inX=cxc(u.c0)-SW/2;u.outX=cxc(u.c0+u.w-1)+SW/2;});
+  // domain: everything after a (non-bypassed) mixer or I/Q demod is IF/baseband; after an I/Q demod the path is I and Q
+  {let bb=false,iq=false;
+    const isBB=st=>st&&!st.off&&BBTYPES.includes(st.type), isIq=st=>st&&!st.off&&st.type==='iqd';
+    units.forEach(u=>{
+      const sts=u.k==='st'?[u.st]:u.k==='sw'&&!u.it.off&&u.it.sel!=null?u.it.arms[u.it.sel].stages:[];
+      if(sts.some(isBB))bb=true;
+      u.bb=bb||u.k==='out'&&bb;u.iq=iq;
+      if(sts.some(isIq)){iq=true;u.iqOut=true;}
+      u.bbOut=bb; u.iqOutAll=iq;});
+    units.forEach((u,i)=>{const v=units[i+1];u.vppWire=!!(v&&v.bb&&v.k!=='out');});}
+  let h=`<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L10 5L0 9Z" style="fill:var(--muted)"/></marker><marker id="ahOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L10 5L0 9Z" style="fill:var(--ink)"/></marker></defs>`;
+  const nodes=r?r.nodes:null;
+  const pwr=c=>nodes&&nodes[c]?`${fmt(nodes[c].sig,1)} dBm`:null;
+  const outLabel=u=>{if(!nodes)return null;
+    if(u.k==='in')return pwr(0);
+    if(u.k==='sw')return pwr(u.outCol);
+    if(u.k==='st'){if(u.st.type==='adc'&&!u.st.off){const nd=nodes[u.col];return nd&&nd.p.adc?`${fmt(nd.sig-nd.p.adc.fsdbm,1)} dBFS`:null;}return pwr(u.col);}
+    return null;};
+  const pl=(x,y,t,a)=>t?`<text class="dpow" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${a||'middle'}">${t}</text>`:'';
+  const vppOut=u=>{if(!nodes)return null;const c=u.k==='sw'?u.outCol:u.col;if(u.k!=='st'&&u.k!=='sw')return null;
+    if(u.k==='st'&&u.st.type==='adc')return null;const nd=nodes[c];return nd?fmtV(nd.vpp):null;};
+  let pow='', zone='';
+  // tinted IF/baseband cells and the boundary marker
+  let firstBB=true;
+  units.forEach((u,i)=>{if(!u.bb)return;
+    zone+=`<rect class="bbzone" x="${cxc(u.c0)-CW/2+2}" y="${u.top+2}" width="${u.w*CW-4}" height="${(u.k==='sw'?u.rh:RH)-8}" rx="8"/>`;
+    if(firstBB){firstBB=false;const pv=units[i-1], same=pv&&pv.top===u.top, xm=same?(pv.outX+u.inX)/2:u.inX-24;
+      zone+=`<path d="M${xm} ${u.top+6}V${u.ly-32}M${xm} ${u.ly+38}V${u.top+(u.k==='sw'?u.rh:RH)-14}" style="stroke:var(--sig)" stroke-width="1.2" stroke-dasharray="4 4"/>`+
+        (same?`<text class="dzone" x="${xm-6}" y="${u.top+17}" text-anchor="end">RF</text>`:'')+
+        `<text class="dzone" x="${xm+6}" y="${u.top+17}">${u.iq?'BASEBAND, I AND Q':'IF / BASEBAND'}</text>`;}});
+  h+=zone;
+  let iqLabelled=false;
+  for(let i=0;i<units.length-1;i++){
+    const u=units[i], v=units[i+1], t=outLabel(u), dbl2=u.iqOutAll;
+    if(u.top===v.top){const d=`M${u.outX} ${u.ly}H${v.inX-1}`;
+      h+=`<path class="wire" d="${d}" marker-end="url(#ah)"/>`+(dbl2?`<path class="wire" d="M${u.outX} ${u.ly+4}H${v.inX-3}"/>`:'');
+      if(u.vppWire&&nodes){const nd=nodes[u.k==='sw'?u.outCol:u.k==='in'?0:u.col];
+        pow+=pl((u.outX+v.inX)/2,u.ly-19,t)+(nd&&!(u.k==='st'&&u.st.type==='adc')?`<text class="dpow dbv" x="${((u.outX+v.inX)/2).toFixed(1)}" y="${(u.ly-7).toFixed(1)}" text-anchor="middle">${fmt(20*Math.log10(nd.vrms),1)} dBV</text>`:'');}
+      else pow+=pl((u.outX+v.inX)/2,u.ly-7,t);
+      if(u.vppWire){const vv=vppOut(u);if(vv)pow+=`<text class="dvpp" x="${((u.outX+v.inX)/2).toFixed(1)}" y="${u.ly+(dbl2?18:15)}" text-anchor="middle">${vv}</text>`;}
+      if(dbl2&&!iqLabelled){iqLabelled=true;pow+=`<text class="diq" x="${((u.outX+v.inX)/2).toFixed(1)}" y="${u.ly+(u.vppWire?31:18)}" text-anchor="middle">I, Q ×2</text>`;}}
+    else{const yr=u.top+u.rh-12, xr=Math.min(VW-4,u.outX+(CW-SW)/2-6), xl=Math.max(4,v.inX-(CW-SW)/2+6);
+      const d=`M${u.outX} ${u.ly}H${xr}V${yr}H${xl}V${v.ly}H${v.inX-1}`;
+      h+=`<path class="wire" d="${d}" marker-end="url(#ah)"/>`+(dbl2?`<path class="wire" d="${d}" transform="translate(3 3)"/>`:'');
+      pow+=pl(xr-4,yr+14,t,'end');}
+  }
+  const L=r&&r.last, N=flat.entries.length;
+  const sym=(id,x,yy,extra)=>`<use href="#s-${id}" class="su" x="${x-SW/2}" y="${yy-SH/2}" width="${SW}" height="${SH}" style="color:var(--ink);stroke-width:2${extra||''}"/>`;
+  const OFFL=[['','bypassed (thru)','','var(--warn)']];
+  const symO=(id,x,yy,off)=>off?`<g opacity=".35">${sym(id,x,yy)}</g><path class="wire on" d="M${x-SW/2} ${yy}H${x+SW/2}" stroke-dasharray="5 3"/>`:sym(id,x,yy);
+  const cell=(x,top,hgt,col)=>`<rect class="dcell"${col!=null?` data-col="${col}"`:''} x="${x-CW/2+5}" y="${top+4}" width="${CW-10}" height="${hgt}" rx="8"/>`;
+  units.forEach(u=>{
+    const x=cxc(u.c0);
+    if(u.k==='in'){
+      h+=`<g data-dh="0">${cell(x,u.top,RH-28,0)}${sym('in',x,u.ly)}${textBlock(x,u.ly+48,'IN',[])}<text class="dlab" x="${x}" y="${u.ly+66}" text-anchor="middle">${fmt(state.set.pin,1)} dBm per tone</text></g>`;
+    } else if(u.k==='out'){
+      const ls=L&&r.bnd!=null?[['RF G',fmt(r.gRF,1),'dB','var(--gain)'],['BB Av',fmt(r.gBB,1),'dB','var(--gain)'],['NF',fmt(L.nf,2),'dB','var(--nf)'],['SNR',fmt(L.snr,1),'dB','var(--sig)']]:L?[['G',fmt(L.g,1),'dB','var(--gain)'],['NF',fmt(L.nf,2),'dB','var(--nf)'],['IIP3',fmt(N?L.iip3:null,1),'dBm','var(--ip3)'],['SNR',fmt(L.snr,1),'dB','var(--sig)']]:[['','not run','','var(--warn)']];
+      h+=`<g data-dh="${N}">${cell(x,u.top,RH-28,null)}${sym('out',x,u.ly)}${textBlock(x,u.ly+48,'OUT (Cascade)',ls)}</g>`;
+    } else if(u.k==='st'){
+      h+=`<g data-dh="${u.col}" class="dblock" data-skey="${u.st.key}" tabindex="0" role="button" aria-label="Edit ${esc(u.st.name)}">${cell(x,u.top,RH-28,u.col)}${symO(symId(u.st),x,u.ly,u.st.off)}${textBlock(x,u.ly+48,`${u.col}. ${nm1(u.st)}`,u.st.off?OFFL:plines(u.st))}</g>`;
+    } else {
+      const it=u.it, x0=x, x1=cxc(u.c0+u.w-1), yL=u.ly, yB=yL+ARMB, sel=it.sel, m=u.w-2, hStart=h.length;
+      h+=`<rect class="gframe" x="${x0-CW/2+6}" y="${u.top+6}" width="${u.w*CW-12}" height="${RHS-22}" rx="12"/>`+
+         `<text class="dtitle" x="${x0-CW/2+18}" y="${u.top+24}">${esc(trunc(it.name||'Switched block',40))}${sel==null?'<tspan class="dwarn">  choose an arm</tspan>':''}</text>`;
+      // arms
+      [0,1].forEach(a=>{
+        const yT=a?yB:yL, on=sel===a, list=it.arms[a].stages, op=sel==null?0.75:on?1:0.32;
+        const wc=on?'wire on':'wire', mk=on?'url(#ahOn)':'url(#ah)';
+        h+=`<g opacity="${op}"><rect class="armhit" data-psel="${it.key}:${a}" x="${x0+40}" y="${yT-38}" width="${x1-x0-80}" height="${RH-40}"><title>Route through arm ${a?'B':'A'}</title></rect>`;
+        h+=`<text class="dlab" x="${x0+26}" y="${yT-(a?8:18)}" style="font-weight:600">${a?'B':'A'}</text>`;
+        // jog from input SPDT contact
+        const jx=a?x0+68:x0+24, cy=a?yL+10:yL-10;
+        h+=`<path class="${wc}" d="M${x0+12} ${cy}H${jx}V${yT}"/>`;
+        let sx=jx;
+        if(on)pow+=pl(jx+4,yT-5,pwr(u.inCol),'start');
+        if(!list.length){
+          h+=`<path class="${wc}" d="M${sx} ${yT}H${a?x1-68:x1-24}"/><text class="dlab" x="${(x0+x1)/2}" y="${yT-8}" text-anchor="middle">Thru</text>`;
+        } else {
+          list.forEach((s,j)=>{
+            const xs=cxc(u.c0+1+j), c=on?u.armCols[j]:null;
+            h+=`<path class="${wc}" d="M${sx} ${yT}H${xs-SW/2-1}"${j>0?` marker-end="${mk}"`:''}/>`;
+            h+=`<g${c!=null?` data-dh="${c}"`:''} class="dblock" data-skey="${s.key}" data-arm="${it.key}:${a}" tabindex="0" role="button" aria-label="${on?'Edit':'Select arm with'} ${esc(s.name)}">${cell(xs,yT-LY+(a?6:0),a?RH-40:RH-28,c)}${symO(symId(s),xs,yT,s.off)}${textBlock(xs,yT+48,`${c!=null?c+'. ':''}${nm1(s)}`,s.off?OFFL:plines(s))}</g>`;
+            sx=xs+SW/2;
+            if(on)pow+=pl(sx+4,yT-5,pwr(c),'start');
+          });
+          h+=`<path class="${wc}" d="M${sx} ${yT}H${a?x1-68:x1-24}"/>`;
+        }
+        h+=`<path class="${wc}" d="M${a?x1-68:x1-24} ${yT}V${cy}H${x1-12}"/></g>`;
+      });
+      // SPDTs
+      const spdt=(xc,inSide,st,colN)=>{
+        const P=inSide?xc-14:xc+14, C=inSide?xc+12:xc-12, lead=inSide?`M${xc-SW/2} ${yL}H${P}`:`M${P} ${yL}H${xc+SW/2}`;
+        const ty=sel==null?yL-3:(sel===0?yL-10:yL+10);
+        let s=`<g data-dh="${colN}" class="dblock" data-skey="${st.key}" tabindex="0" role="button" aria-label="Edit ${esc(st.name)}">${cell(xc,u.top+30,RH-54,colN)}`+
+          `<path class="wire on" d="${lead}"/><circle cx="${P}" cy="${yL}" r="2.6" style="fill:var(--panel);stroke:var(--ink)" stroke-width="1.8"/>`+
+          `<circle cx="${C}" cy="${yL-10}" r="2.4" style="fill:var(--panel);stroke:var(--ink)" stroke-width="1.6"/><circle cx="${C}" cy="${yL+10}" r="2.4" style="fill:var(--panel);stroke:var(--ink)" stroke-width="1.6"/>`+
+          `<path d="M${P} ${yL}L${C+(inSide?-2:2)} ${ty}" style="stroke:var(--ink)" stroke-width="2" stroke-linecap="round"${sel==null?' stroke-dasharray="3 3"':''}/>`+
+          textBlock(xc,yL+48,`${colN}. ${nm1(st)}`,st.off?[['','bypassed (ideal)','','var(--warn)']]:plines(st))+'</g>';
+        return s;
+      };
+      h+=spdt(x0,true,it.swIn,u.inCol)+spdt(x1,false,it.swOut,u.outCol);
+      if(it.off){h=h.slice(0,hStart)+`<g opacity=".32">`+h.slice(hStart)+`</g>`+
+        `<path class="wire on" d="M${x0-SW/2} ${yL}H${x1+SW/2}" stroke-dasharray="6 4"/>`+
+        `<text class="dtitle" x="${x0-CW/2+18}" y="${u.top+24}"><tspan class="dwarn">${esc(trunc(it.name||'Switched block',30))}: block bypassed (thru)</tspan></text>`;}
+    }
+  });
+  svg.innerHTML=h+pow;
+}
+const diag=$('#diag');
+diag.addEventListener('pointermove',e=>{if(drag)return;const t=e.target.closest('[data-dh]');if(t)setHover(+t.dataset.dh,e);else clearHover();});
+diag.addEventListener('pointerleave',clearHover);
+function diagActivate(t){
+  const hit=t.closest('.armhit'); if(hit){const [k,a]=hit.dataset.psel.split(':');selectArm(k,+a);return;}
+  const g=t.closest('.dblock'); if(!g)return;
+  if(g.dataset.arm){const [k,a]=g.dataset.arm.split(':');const sw=state.stages.find(s=>s.key===k);
+    if(sw&&sw.sel!==+a){selectArm(k,+a);}}
+  focusCard(g.dataset.skey);
+}
+diag.addEventListener('click',e=>diagActivate(e.target));
+diag.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('.dblock')){e.preventDefault();diagActivate(e.target);}});
+function focusCard(key){
+  const c=cardsEl.querySelector(`.card[data-key="${key}"]`); if(!c)return;
+  const cl=c.getBoundingClientRect().left-cardsEl.getBoundingClientRect().left;
+  board.scrollTo({left:Math.max(0,cl-(board.clientWidth-c.offsetWidth)/2),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  board.scrollIntoView({block:'nearest',behavior:'auto'});
+  c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+  const inp=c.querySelector('input[data-f]'); if(inp)inp.focus({preventScroll:true});
+}
+
+/* ---------- cards ---------- */
+const togBtn=(on,attr,what)=>`<button class="tog${on?' on':''}" ${attr} role="switch" aria-checked="${on}" title="${on?'Click to bypass this '+what+' (replace with a thru)':'Bypassed: click to put this '+what+' back in the chain'}" aria-label="${what} in chain"><i></i></button>`;
+// compact field: small label + unit above a narrow input, two per row
+const fld=(f,lab,unit,val,o)=>{o=o||{};return `<label class="fld${o.g?' g':''}${o.span?' s2':''}"${o.title?` title="${o.title}"`:''}><span class="fl"><i>${lab}</i><em>${unit||''}</em></span><input data-f="${f}" inputmode="decimal" autocomplete="off"${OPTF.includes(f)?' placeholder="∞"':''} value="${val==null?'':num(val)}"${o.dis?' disabled title="Derived from loss"':''}></label>`;};
+const ip3Fld=s=>`<div class="fld"><span class="fl"><button class="reftog" data-ref title="Switch between input and output IP3">${s.ip3ref==='out'?'OIP3':'IIP3'}</button><em>dBm</em></span><input data-f="ip3" inputmode="decimal" autocomplete="off" placeholder="∞" aria-label="IP3" value="${s.ip3==null?'':num(s.ip3)}"></div>`;
+const selFld=(f,lab,opts,cur,span)=>`<label class="fld${span?' s2':''}"><span class="fl"><i>${lab}</i></span><select class="csel" data-f="${f}" aria-label="${lab}">${opts.map(([v,t])=>`<option value="${v}"${cur===v?' selected':''}>${t}</option>`).join('')}</select></label>`;
+const chkFld=(f,label,on)=>`<label class="chk s2"><input type="checkbox" data-f="${f}"${on?' checked':''}><span>${label}</span></label>`;
+const subFld=t=>`<div class="fsub">${t}</div>`;
+function cardShell(s,col,o,typeCtl,body,info,tools){
+  const off=s.off||o.goff;
+  return `<div class="card${off?' off':''}" data-col="${col}" data-key="${s.key}"${o.list?` data-list="${o.list}" data-drag`:''}>
+    <div class="card-top">${o.list?`<span class="grip" title="Drag to reorder">${ICON.grip}</span>`:''}<span class="idx">${col}</span>${typeCtl}${togBtn(!s.off,'data-tog',s.type==='adc'?'ADC':'component')}</div>
+    <div class="nameln"><span class="sym">${symSvg(symId(s))}</span><div class="cname" contenteditable="true" spellcheck="false" role="textbox" aria-multiline="true" aria-label="Component name" title="Shift+Enter: new line, Enter: done">${esc(s.name)}</div></div>
+    ${off?`<div class="offnote">${s.off?(o.fixed?'Bypassed (ideal switch)':s.type==='adc'?'Bypassed (no ADC)':'Bypassed (thru)'):'Block bypassed'}</div>`:''}
+    <div class="fg${o.two?'':' one'}${o.adc?' adc-'+o.adc:''}">${body}</div>${info?`<div class="cinfo" data-ci="${s.key}"></div>`:''}${tools}</div>`;
+}
+const toolsHTML=o=>o.fixed?'<div class="tools fixedtools"><span>Part of switched block</span></div>':`<div class="tools">
+      <button data-act="left" title="Move left" aria-label="Move left"${o.first?' disabled':''}>${ICON.left}</button>
+      <button data-act="right" title="Move right" aria-label="Move right"${o.last?' disabled':''}>${ICON.right}</button>
+      <button data-act="dup" title="Duplicate" aria-label="Duplicate">${ICON.dup}</button>
+      <button data-act="del" title="Delete" aria-label="Delete">${ICON.del}</button></div>`;
+const typeSel=s=>`<select class="ctype" aria-label="Component type">${ANALOG.filter(t=>(t!=='vga'&&t!=='iqd')||s.type===t).map(t=>`<option value="${t}"${t===s.type?' selected':''}>${SHORT[t]}</option>`).join('')}</select>`;
+function stageCard(s,col,o){
+  let body;
+  if(LOSSY.includes(s.type)){
+    body=fld('ilg','IL','dB',-s.g,{g:1})+fld('nf','NF','dB',effNF(s),{dis:true,title:'NF = IL for a passive part'})+
+      (IDEAL_LIN.includes(s.type)?'':fld('p1','IP1dB','dBm',s.p1)+ip3Fld(s));
+  } else {
+    const linked=s.link&&s.type!=='amp';
+    body=fld('g','Gain','dB',s.g,{g:1})+fld('nf','NF','dB',effNF(s),{dis:linked})+fld('p1','IP1dB','dBm',s.p1)+ip3Fld(s)+
+      (s.type==='mixer'?chkFld('link','Passive: NF = loss',s.link):'');
+  }
+  return cardShell(s,col,o,o.fixed?`<span class="tlabel">SPDT</span>`:typeSel(s),body,false,toolsHTML(o));
+}
+function infoHTML(st){
+  const bk=lastR&&lastR.byKey&&lastR.byKey[st.key], p=bk?bk.p:sp(st,false,{zin:Z0}), S=state.set;
+  switch(st.type){
+    case 'adc':{const a=adcStd(st), en=sinad2enob(st.sinad);
+      let t=`Ideal SNR (${st.bits} bits) <b>${fmt(a.ideal,1)} dB</b><br>${st.sm==='enob'?`SINAD <b>${fmt(st.sinad,1)} dBFS</b>`:`ENOB <b>${fmt(en,2)} bits</b>`}`+
+        `<br>NSD <b>${fmt(a.nsdFS,1)} dBFS/Hz</b><br>NSD <b>${fmt(a.nsdDbm,1)} dBm/Hz</b> @ ${fmtU(st.rin)} Ω<br>ADC NF <b>${fmt(a.nfStd,1)} dB</b>`;
+      if(st.sinad>a.ideal+0.05)t+=`<br><span style="color:var(--warn)">SINAD above the ideal SNR for ${st.bits} bits: check the datasheet values</span>`;
+      return t;}
+    case 'bal':return (bk&&bk.src.kind==='v'?'Voltage domain':`Z <b>${fmt(p.zin,0)} → ${fmt(p.zout,0)} Ω</b>`)+`<br>Voltage gain <b>×${fmt(p.av,2)}</b> (${fmt(20*Math.log10(p.av),1)} dB)`;
+    case 'opa':return opInfo(st,p,bk);
+    case 'aaf':{let t=st.nbw==null?'Not band-limiting (no noise BW)':`Limits noise to <b>${fmtU(st.nbw)} MHz</b>`;
+      if(st.tech==='active')t+='<br>'+opInfo(st,p,bk);
+      else if(p.backTerm)t+=`<br>Driven by an op-amp: back-terminated in ${fmt(st.zf,0)} Ω, −6 dB divider included`;
+      return t;}
+    case 'vga':return `NF at this gain <b>${fmt(p.nf,1)} dB</b>${p.gclamped?'<br><span style="color:var(--warn)">Gain clamped to range</span>':''}`;
+    case 'iqd':return `Image rejection <b>${fmt(p.irr,1)} dB</b>${st.lo!=null?`<br>LO drive <b>${fmt(st.lo,1)} dBm</b> (info only)`:''}`;
+  }
+  return '';
+}
+function opInfo(st,p,bk){
+  if(!p||p.av0==null||p.inTxt==null)return '';   // stale result from before a structural change; refreshed after recalc
+  const sgnA=st.type==='opa'&&st.topo==='inv'?'−':'';
+  const ant=bk&&p.p1!=null?p.p1-bk.gBefore:null;
+  return `A<sub>v</sub> <b>${sgnA}${fmt(p.av0,2)} V/V</b> (${fmt(20*Math.log10(p.av0),1)} dB), NF <b>${fmt(p.nf,1)} dB</b>`+
+    `<br>f<sub>−3dB</sub> <b>${fmt(p.f3,0)} MHz</b>${fin(p.rin)?`, R<sub>in</sub> <b>${fmt(p.rin,0)} Ω</b>`:''}<br>${p.inTxt.charAt(0).toUpperCase()+p.inTxt.slice(1)}`+
+    `<br>Clip <b>${fin(p.vmax)?fmt(p.vmax,2)+' Vpp':'∞'}</b>${p.slewLim?' (slew)':''}`+(fin(p.vin)?` ⇐ <b>${fmtV(p.vin)}</b> in`:'')+
+    (ant!=null&&fin(ant)?`<br>⇐ <b>${fmt(ant,1)} dBm</b> at chain input`:'')+
+    (p.oip3!=null?`<br>OIP3 <b>${fmt(p.oip3,1)} dBm</b> (HD3 at ${fmtU(hdLevel(st))} Vpp)`:'');
+}
+const inModeTxt=m=>m==='term'?'Input: terminated':m==='open'?'Input: high-Z (+6 dB)':m==='bridge'?'Input: driven by op-amp':'';
+function updateInfos(){cardsEl.querySelectorAll('[data-ci]').forEach(el=>{const f=findKey(el.dataset.ci);if(f)el.innerHTML=infoHTML(f.obj);});
+}
+const fmtF=mhz=>mhz<1?fmtU(mhz*1000)+' kHz':fmtU(mhz)+' MHz';
+function genCard(s,col,o){
+  let body='';
+  const hdT='Datasheet HD3; assumed to be quoted at an output a little above half the supply (supply taken as swing + 1 V)';
+  const opAmpFlds=(s,two)=>subFld('Op-amp')+fld('en','e<sub>n</sub>','nV/√Hz',s.en)+fld('in_','i<sub>n</sub>','pA/√Hz',s.in_)+
+    fld('gbw','GBW','MHz',s.gbw)+fld('sr','SR','V/µs',s.sr)+fld('vsw','Swing','Vpp',s.vsw)+fld('hd3','HD3','dBc',s.hd3,{title:hdT});
+  switch(s.type){
+    case 'bal':body=fld('il','IL','dB',s.il)+fld('ratio','Z ratio','1:n',s.ratio);break;
+    case 'opa':body=selFld('topo','Topology',[['noninv','Non-inverting'],['inv','Inverting']],s.topo,true)+
+      fld('rf','R<sub>f</sub>','Ω',s.rf)+fld('rg','R<sub>g</sub>','Ω',s.rg)+fld('rt','R<sub>t</sub>','Ω',s.rt,{title:'Optional shunt termination at the input; empty = none'})+'<span></span>'+opAmpFlds(s,true);break;
+    case 'aaf':{const act=s.tech==='active';
+      const nbT='Equivalent noise bandwidth of the filter, used for noise folding at the ADC. Leave empty for an HPF or AC coupling (not band-limiting).';
+      body=selFld('tech','Build',[['passive','Passive'],['active','Active']],s.tech)+
+        (act?fld('av','Gain','V/V',s.av,{g:1})+fld('nbw','N. BW','MHz',s.nbw,{title:nbT})+fld('rnet','R','Ω',s.rnet)+fld('rt','R<sub>t</sub>','Ω',s.rt)+opAmpFlds(s,false)
+            :fld('il','IL','dB',s.il)+fld('nbw','N. BW','MHz',s.nbw,{title:nbT})+fld('zf','Z','Ω',s.zf,{title:'Filter impedance; only used when an op-amp drives the filter (back-termination)'}));break;}
+    case 'vga':body=fld('gset','Gain','dB',s.gset,{g:1})+fld('nfmax','NF<sub>max</sub>','dB',s.nfmax)+fld('gmax','G<sub>max</sub>','dB',s.gmax)+fld('gmin','G<sub>min</sub>','dB',s.gmin)+
+      fld('nfsl','NF slope','dB/dB',s.nfsl)+fld('op1','OP1dB','dBm',s.op1)+ip3Fld(s);break;
+    case 'iqd':body=fld('g','Gain','dB',s.g,{g:1})+fld('nf','NF','dB',s.link?Math.max(0,-s.g):s.nf,{dis:s.link})+chkFld('link','NF = loss',s.link)+
+      fld('p1','IP1dB','dBm',s.p1)+ip3Fld(s)+fld('ip2','IIP2','dBm',s.ip2)+fld('lo','LO','dBm',s.lo,{title:'Information only'})+
+      fld('gimb','ΔG','dB',s.gimb)+fld('pimb','Δφ','deg',s.pimb)+fld('zo','Z<sub>IF</sub>','Ω',s.zo);break;
+  }
+  return cardShell(s,col,Object.assign({},o,{two:s.type==='opa'}),typeSel(s),body,true,toolsHTML(o));
+}
+const anyCard=(s,col,o)=>RF.includes(s.type)?stageCard(s,col,o):genCard(s,col,o);
+function adcInfoHTML(s){const a=adcInfo(s);return `Full scale <b>${fmt(a.fsdbm,1)} dBm</b><br>NF <b>${fmt(a.nf,1)} dB</b>, ENOB <b>${fmt(a.enob,1)}</b>`;}
+function adcCard(s,col){
+  const der=f=>s.sm!==f?{title:'Calculated from the other one; type here to enter this value instead'}:{};
+  const body=fld('vpp','FS','Vpp',s.vpp)+fld('rin','R<sub>in</sub>','Ω',s.rin)+fld('fs','f<sub>s</sub>','MS/s',s.fs)+fld('bits','Bits','',s.bits)+
+    fld('sinad','SINAD','dBFS',Math.round(s.sinad*100)/100,der('sinad'))+fld('enob','ENOB','bits',Math.round(sinad2enob(s.sinad)*100)/100,der('enob'));
+  return cardShell(s,col,{adc:s.sm},`<span class="tlabel">ADC</span>`,body,true,`<div class="tools"><span></span><button data-act="del" title="Delete" aria-label="Delete">${ICON.del}</button></div>`);
+}
+function renderCards(){
+  let col=0;
+  let h=`<div class="card" data-col="0"><div class="card-top"><span class="tlabel">Input</span></div><div class="sym">${symSvg('in')}</div><p class="in-note">Reference plane. Each column shows the result at that component's output.</p></div>`;
+  const rootList=state.stages.filter(s=>s.type!=='adc');
+  state.stages.forEach(it=>{
+    const ri=rootList.indexOf(it), first=ri===0, last=ri===rootList.length-1;
+    if(it.type==='adc'){h+=adcCard(it,++col);return;}
+    if(it.type!=='sw'){h+=anyCard(it,++col,{list:'root',first,last});return;}
+    const sel=it.sel, arm=sel!=null?it.arms[sel].stages:[];
+    const goff=!!it.off;
+    let inner=stageCard(it.swIn,++col,{fixed:true,goff});
+    arm.forEach((s,j)=>{inner+=anyCard(s,++col,{list:it.key+':'+sel,first:j===0,last:j===arm.length-1,goff});});
+    inner+=stageCard(it.swOut,++col,{fixed:true,goff});
+    const opts=`<option value="">+ Add</option>`+ANALOG.map(t=>`<option value="${t}">${TYPES[t].label}</option>`).join('');
+    h+=`<div class="group${goff?' off':''}" data-key="${it.key}" data-list="root" data-drag>
+      <div class="gframe-b"></div>
+      <div class="ghead"><span class="grip" title="Drag block to reorder">${ICON.grip}</span>
+        <input class="gname" value="${esc(it.name)}" maxlength="40" aria-label="Switched block name">
+        <div class="tabs${sel==null?' ask':''}" role="group" aria-label="Active arm"><button data-gsel="0" class="${sel===0?'on':''}" aria-pressed="${sel===0}" title="Route and edit arm A">A</button><button data-gsel="1" class="${sel===1?'on':''}" aria-pressed="${sel===1}" title="Route and edit arm B">B</button></div>
+        <select class="gadd" aria-label="Add component to the active arm"${sel==null?' disabled':''}>${opts}</select>
+        <button class="ic" data-gact="dup" title="Duplicate block" aria-label="Duplicate block">${ICON.dup}</button>
+        <button class="ic" data-gact="del" title="Delete block" aria-label="Delete block">${ICON.del}</button>
+        ${togBtn(!goff,'data-gtog','switched block')}
+      </div>${inner}</div>`;
+  });
+  const adcOn=hasAdc();
+  const ADDL={iqd:'I/Q mixer<br>(passive)',bal:'Balun',opa:'Op-amp'};
+  const ab=t=>`<button data-add="${t}"><span class="mini">${symSvg(t==='aaf'?'fbp':t)}</span><span>${ADDL[t]||TYPES[t].label}</span></button>`;
+  h+=`<div class="addcard"><span class="add-title">Add to Chain</span><span class="add-sub">RF</span>${ADD_RF.map(ab).join('')}
+    <button data-add="sw"><span class="mini">${symSvg('sw')}</span><span>Switched block</span></button>
+    <span class="add-sub">IF / baseband</span>${ADD_BB.map(ab).join('')}
+    <button data-add="adc"${adcOn?' disabled title="The chain already ends in an ADC"':''}><span class="mini">${symSvg('adc')}</span><span>ADC (end)</span></button></div>`;
+  cardsEl.innerHTML=h; updateInfos();
+}
+function parseVal(raw){const t=String(raw).trim().replace(',','.').replace('−','-');if(t==='')return NaN;return Number(t);}
+
+cardsEl.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.classList.contains('gname')){const sw=findKey(el.closest('.group').dataset.key).obj;sw.name=el.value;changed(false);return;}
+  const card=el.closest('.card[data-key]'); if(!card)return;
+  const f0=findKey(card.dataset.key); if(!f0)return; const s=f0.obj;
+  if(el.classList.contains('cname')){const raw=el.tagName==='DIV'?(el.innerText!=null?el.innerText:el.textContent):el.value;
+    s.name=raw.replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{2,}/g,'\n').slice(0,200);changed(false);return;}
+  const f=el.dataset.f; if(!f||f==='link')return;
+  if(!committing){markPending(el);return;}
+  const raw=el.value.trim();
+  if(f==='sinad'||f==='enob'){const v=parseVal(raw);if(!isFinite(v)||v<=0){el.classList.add('bad');return;}el.classList.remove('bad');
+    s.sinad=f==='sinad'?v:enob2sinad(v); s.sm=f;
+    const other=card.querySelector(`[data-f="${f==='sinad'?'enob':'sinad'}"]`);
+    if(other){other.value=num(f==='sinad'?sinad2enob(v):s.sinad);other.dataset.cv=other.value;other.classList.remove('pending','bad');}
+    const fg=card.querySelector('.fg');fg.classList.toggle('adc-sinad',f==='sinad');fg.classList.toggle('adc-enob',f==='enob');
+    changed(false);return;}
+  if(f==='ilg'){const v=parseVal(raw);if(!isFinite(v)||v<0){el.classList.add('bad');return;}el.classList.remove('bad');s.g=-v;
+    const nfEl=card.querySelector('[data-f="nf"]');if(nfEl)nfEl.value=num(effNF(s));changed(false);return;}
+  if(OPTF.includes(f)&&(raw===''||raw==='∞'||/^inf/i.test(raw))){s[f]=null;el.classList.remove('bad');changed(false);return;}
+  const v=parseVal(raw);
+  const okv=isFinite(v)&&!(POSF.includes(f)&&v<=0)&&!(NNEGF.includes(f)&&v<0)&&!(f==='ord'&&(v<1||v>10||Math.round(v)!==v))&&!(f==='bits'&&(v<1||v>32||Math.round(v)!==v));
+  if(!okv){el.classList.add('bad');return;}
+  el.classList.remove('bad'); s[f]=v;
+  if(f==='g'&&s.link&&s.type!=='amp'){card.querySelector('[data-f="nf"]').value=num(effNF(s));}
+  
+  changed(false);
+});
+cardsEl.addEventListener('paste',e=>{const el=e.target.closest&&e.target.closest('.cname[contenteditable]');if(!el)return;
+  e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text').replace(/\r/g,'').replace(/[ \t]+/g,' ');document.execCommand('insertText',false,t);});
+cardsEl.addEventListener('focusout',e=>{const el=e.target;if(el.classList&&el.classList.contains('cname')&&el.tagName==='DIV'){const f=findKey(el.closest('.card').dataset.key);
+  if(f){f.obj.name=f.obj.name.replace(/^\s+|\s+$/g,'');el.textContent=f.obj.name;}}});
+cardsEl.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.classList.contains('gadd')){
+    const t=el.value; el.value=''; if(!t)return;
+    const sw=findKey(el.closest('.group').dataset.key).obj; if(sw.sel==null)return;
+    const arm=sw.arms[sw.sel].stages; arm.push(newStage(t)); changed(true);
+    const k=arm[arm.length-1].key; requestAnimationFrame(()=>focusCard(k)); return;
+  }
+  const card=el.closest('.card[data-key]'); if(!card)return;
+  const s=findKey(card.dataset.key).obj;
+  if(el.classList.contains('ctype')){
+    const old=s.type, nt=el.value;
+    if(RF.includes(old)&&RF.includes(nt)){
+      if(s.name===TYPES[old].label)s.name=TYPES[nt].label;
+      if(s.link&&old!=='amp')s.nf=effNF(s);
+      s.type=nt; s.link=nt==='amp'?false:TYPES[nt].def.link; s.ip3ref=TYPES[nt].def.ip3ref;
+      if(nt==='amp'&&s.g<=0){s.g=TYPES.amp.def.g;}
+      if(LOSSY.includes(nt)){s.link=true;if(s.g>0)s.g=TYPES[nt].def.g;}
+    } else {
+      const keep={key:s.key,off:s.off,name:s.name===TYPES[old].label?TYPES[nt].label:s.name};
+      Object.keys(s).forEach(k=>{delete s[k];}); Object.assign(s,newStage(nt),keep);
+    }
+    changed(true);
+  } else if(el.dataset.f==='resp'||el.dataset.f==='tech'||el.dataset.f==='topo'){s[el.dataset.f]=el.value;changed(true);
+  } else if(el.dataset.f==='term'||el.dataset.f==='nfo'){
+    if(el.dataset.f==='nfo'&&el.checked){const bk=lastR&&lastR.byKey[s.key]||{};const p=sp(s,false,{zin:bk.zin||Z0,src:bk.src||'z'});s.nf=Math.round(p.nfc*10)/10;}
+    s[el.dataset.f]=el.checked; changed(true);
+  } else if(el.dataset.f==='link'){
+    if(!el.checked)s.nf=effNF(s);
+    s.link=el.checked; changed(true);
+  }
+});
+cardsEl.addEventListener('click',e=>{
+  const add=e.target.closest('[data-add]');
+  if(add){const t=add.dataset.add; let it;
+    if(t==='adc'){if(hasAdc())return;it=newAdc();state.stages.push(it);}
+    else if(t==='sw'){const cnt=state.stages.filter(s=>s.type==='sw').length;it=newSw({name:cnt?`Switched block ${cnt+1}`:'Switched block'});insertRoot(it);}
+    else{const cnt=state.stages.filter(s=>s.type===t).length;it=newStage(t,{name:cnt?`${TYPES[t].label} ${cnt+1}`:TYPES[t].label});insertRoot(it);}
+    changed(true);
+    if(t==='sw')setStatus(`Added “${it.name}”. Choose which arm to simulate.`,'warn');
+    requestAnimationFrame(()=>{const target=t==='sw'?cardsEl.querySelector(`.group[data-key="${it.key}"] .gname`):cardsEl.querySelector(`.card[data-key="${it.key}"] .cname`);
+      if(target){const c=target.closest('.group,.card');board.scrollLeft=Math.max(0,c.getBoundingClientRect().left-cardsEl.getBoundingClientRect().left-60);target.focus({preventScroll:true});}});
+    return;}
+  const tg=e.target.closest('[data-tog],[data-gtog]');
+  if(tg){const isG=tg.hasAttribute('data-gtog');
+    const obj=findKey(isG?tg.closest('.group').dataset.key:tg.closest('.card').dataset.key).obj;
+    obj.off=!obj.off; changed(true);
+    setStatus(`“${obj.name}” ${obj.off?'bypassed: replaced by a thru':'is back in the chain'}`,'');
+    requestAnimationFrame(()=>{const sel=isG?`.group[data-key="${obj.key}"] [data-gtog]`:`.card[data-key="${obj.key}"] [data-tog]`;const b=cardsEl.querySelector(sel);if(b)b.focus({preventScroll:true});});
+    return;}
+  const ref=e.target.closest('[data-ref]');
+  if(ref){const s=findKey(ref.closest('.card').dataset.key).obj;
+    if(s.ip3!=null)s.ip3=s.ip3ref==='out'?s.ip3-s.g:s.ip3+s.g;
+    s.ip3ref=s.ip3ref==='out'?'in':'out';
+    ref.textContent=s.ip3ref==='out'?'OIP3':'IIP3';
+    const inp=ref.closest('.fld,.row').querySelector('input'); inp.value=s.ip3==null?'':num(s.ip3);
+    changed(false);return;}
+  const gs=e.target.closest('[data-gsel]');
+  if(gs){selectArm(gs.closest('.group').dataset.key,+gs.dataset.gsel);return;}
+  const ga=e.target.closest('[data-gact]');
+  if(ga){const f=findKey(ga.closest('.group').dataset.key);
+    if(ga.dataset.gact==='dup'){const c=reKey(f.obj);c.name=f.obj.name+' (copy)';f.arr.splice(f.i+1,0,c);}
+    else f.arr.splice(f.i,1);
+    fixAdc();changed(true);return;}
+  const b=e.target.closest('[data-act]'); if(!b)return;
+  const f=findKey(b.closest('.card').dataset.key); if(!f||!f.arr)return;
+  const st=f.arr, i=f.i, act=b.dataset.act;
+  const limit=f.list==='root'&&hasAdc()?st.length-2:st.length-1;
+  if(act==='left'&&i>0){[st[i-1],st[i]]=[st[i],st[i-1]];}
+  else if(act==='right'&&i<limit){[st[i+1],st[i]]=[st[i],st[i+1]];}
+  else if(act==='dup'){const c=reKey(st[i]);c.name=st[i].name+' (copy)';st.splice(i+1,0,c);}
+  else if(act==='del'){st.splice(i,1);}
+  else return;
+  fixAdc(); const movedKey=act==='dup'?st[i+1].key:(act==='del'?null:f.obj.key);
+  changed(true);
+  if(movedKey)requestAnimationFrame(()=>{const btn=cardsEl.querySelector(`.card[data-key="${movedKey}"] [data-act="${act}"]`);if(btn&&!btn.disabled)btn.focus({preventScroll:true});});
+});
+function insertRoot(it){const i=state.stages.findIndex(s=>s.type==='adc');if(i>=0)state.stages.splice(i,0,it);else state.stages.push(it);}
+cardsEl.addEventListener('pointerover',e=>{if(drag)return;const c=e.target.closest('.card[data-col]');if(c)setHover(+c.dataset.col,null);});
+cardsEl.addEventListener('pointerleave',()=>{if(!drag)clearHover();});
+
+/* ---------- drag to reorder ---------- */
+let drag=null, dragRAF=0;
+const contentX=clientX=>clientX-cardsEl.getBoundingClientRect().left;
+cardsEl.addEventListener('pointerdown',e=>{
+  const g=e.target.closest('.grip'); if(!g||e.button>0)return;
+  const el=g.closest('[data-drag]'); if(!el)return;
+  e.preventDefault(); clearHover();
+  const list=el.dataset.list;
+  const items=[...cardsEl.querySelectorAll('[data-drag]')].filter(x=>x.dataset.list===list);
+  const base=cardsEl.getBoundingClientRect().left;
+  const geo=items.map(x=>{const r=x.getBoundingClientRect(),cs=getComputedStyle(x);return {c:r.left-base+r.width/2,pitch:r.width+parseFloat(cs.marginLeft)+parseFloat(cs.marginRight)};});
+  const i=items.indexOf(el);
+  drag={i,el,items,geo,list,x0:contentX(e.clientX),x:e.clientX,target:i};
+  try{g.setPointerCapture(e.pointerId);}catch(_){}
+  el.classList.add('dragging'); items.forEach(x=>{if(x!==el)x.classList.add('shift');});
+  document.body.classList.add('is-dragging');
+  dragRAF=requestAnimationFrame(dragTick);
+});
+cardsEl.addEventListener('pointermove',e=>{if(!drag)return;drag.x=e.clientX;updateDrag();});
+function updateDrag(){
+  const dx=contentX(drag.x)-drag.x0, P=drag.geo[drag.i].pitch;
+  drag.el.style.transform=`translateX(${dx}px)`;
+  const c=drag.geo[drag.i].c+dx; let t=0;
+  drag.geo.forEach((g,j)=>{if(j!==drag.i&&g.c<c)t++;});
+  drag.target=t;
+  drag.items.forEach((x,j)=>{if(j===drag.i)return;let s=0;
+    if(drag.i<t&&j>drag.i&&j<=t)s=-P; else if(drag.i>t&&j>=t&&j<drag.i)s=P;
+    x.style.transform=s?`translateX(${s}px)`:'';});
+}
+function dragTick(){
+  if(!drag)return;
+  const r=board.getBoundingClientRect(), edge=56; let v=0;
+  if(drag.x<r.left+edge)v=-(r.left+edge-drag.x)/3; else if(drag.x>r.right-edge)v=(drag.x-(r.right-edge))/3;
+  if(v){const before=board.scrollLeft;board.scrollLeft+=v;if(board.scrollLeft!==before)updateDrag();}
+  dragRAF=requestAnimationFrame(dragTick);
+}
+function endDrag(){
+  if(!drag)return; cancelAnimationFrame(dragRAF);
+  const {i,target,items,list}=drag;
+  items.forEach(x=>{x.style.transform='';x.classList.remove('shift','dragging');});
+  document.body.classList.remove('is-dragging'); drag=null;
+  if(target!==i){const arr=getList(list);if(!arr)return;const [s]=arr.splice(i,1);arr.splice(target,0,s);fixAdc();changed(true);
+    setStatus(`Moved “${s.name}”`,'');}
+}
+cardsEl.addEventListener('pointerup',endDrag);
+cardsEl.addEventListener('pointercancel',endDrag);
+
+/* ---------- label placement (no overlaps) ---------- */
+const _tctx=(()=>{try{return document.createElement('canvas').getContext('2d');}catch(e){return null;}})();
+function tw(t,size,weight){
+  if(_tctx){_tctx.font=`${weight||500} ${size}px Barlow, system-ui, sans-serif`;const w=_tctx.measureText(t).width;if(w>0)return w;}
+  return String(t).length*size*0.6;
+}
+function makePlacer(bd){
+  const boxes=[];
+  const box=(x,y,a,w,s)=>{const x0=a==='middle'?x-w/2:a==='end'?x-w:x;return {x0:x0-2,x1:x0+w+2,y0:y-s*0.85-1,y1:y+s*0.25+1};};
+  const ov=b=>boxes.some(o=>b.x0<o.x1&&b.x1>o.x0&&b.y0<o.y1&&b.y1>o.y0);
+  const inb=b=>b.x0>=bd.x0&&b.x1<=bd.x1&&b.y0>=bd.y0&&b.y1<=bd.y1;
+  return {
+    block(b){boxes.push(b);},
+    place(l){const w=tw(l.text,l.size,l.weight);
+      for(const c of l.cands){const b=box(c.x,c.y,c.a||'middle',w,l.size);if(!l.force&&(!inb(b)||ov(b)))continue;boxes.push(b);return c;}
+      return null;}
+  };
+}
+/* ---------- charts ---------- */
+function nice(lo,hi,n){
+  const raw=(hi-lo)/n, mag=Math.pow(10,Math.floor(Math.log10(raw))), r=raw/mag;
+  const step=(r<=1?1:r<=2?2:r<=2.5?2.5:r<=5?5:10)*mag;
+  const a=Math.floor(lo/step)*step, b=Math.ceil(hi/step)*step, ticks=[];
+  for(let t=a;t<=b+step*1e-6;t+=step)ticks.push(+t.toFixed(10));
+  return {lo:a,hi:b,step,ticks};
+}
+function chart(svg,o){
+  const N=flat.entries.length, plotW=(N+1)*COL, W=LEFT+plotW+ADDW, H=o.h||256, T=28, B=52+(o.extra?20:0), ph=H-T-B;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('width',W); svg.setAttribute('height',H);
+  const x=i=>LEFT+i*COL+COL/2;
+  let h='';
+  for(let i=0;i<=N;i++)h+=`<rect class="colband" data-col="${i}" x="${LEFT+i*COL}" y="${T}" width="${COL}" height="${ph}"/>`;
+  if(flat.entries.some(e=>e.off)){
+    h+=`<defs><pattern id="hatch-${svg.id}" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.5" height="8" style="fill:var(--line)"/></pattern></defs>`;
+    flat.entries.forEach((e,k)=>{if(e.off)h+=`<rect x="${LEFT+(k+1)*COL+2}" y="${T}" width="${COL-4}" height="${ph}" fill="url(#hatch-${svg.id})" opacity=".55"/>`;});
+  }
+  if(o.msg||!N){h+=`<text class="empty" x="${LEFT+10}" y="${T+ph/2}">${esc(o.msg||'Add a component and the curve appears here.')}</text>`;}
+  else{
+    const vals=[], push=v=>{if(fin(v))vals.push(v);};
+    (o.series||[]).forEach(s=>s.values.forEach(push)); (o.bars||[]).forEach(b=>b.values.forEach(push)); if(o.zero)vals.push(0);
+    if(vals.length||o.yfix){
+      let sc;
+      if(o.yfix)sc=nice(o.yfix[0],o.yfix[1],5);
+      else{let mn=Math.min(...vals), mx=Math.max(...vals); const span=(mx-mn)||Math.abs(mx)||1; mn-=span*.12; mx+=span*.16; sc=nice(mn,mx,5);}
+      const y=v=>T+ph*(1-(v-sc.lo)/(sc.hi-sc.lo));
+      const P=makePlacer({x0:LEFT-4,y0:2,x1:LEFT+plotW+ADDW-4,y1:T+ph+2});
+      let lab='';
+      if(o.mark&&o.mark.col>0){const i=o.mark.col;
+        h+=`<rect x="${LEFT+i*COL+3}" y="${T}" width="${COL-6}" height="${ph}" rx="5" style="fill:${o.mark.color}" fill-opacity=".09"/>`;
+        P.place({text:o.mark.text,size:12,weight:600,force:true,cands:[{x:x(i),y:T-10}]});
+        lab+=`<text class="marktxt" x="${x(i)}" y="${T-10}" text-anchor="middle" style="fill:${o.mark.color}">${esc(o.mark.text)}</text>`;}
+      if(o.bnd){const bx=LEFT+(o.bnd.col+1)*COL;
+        h+=`<line x1="${bx}" x2="${bx}" y1="${T}" y2="${T+ph}" style="stroke:var(--sig)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+        P.place({text:o.bnd.left,size:11.5,weight:600,force:true,cands:[{x:bx-5,y:T+ph-6,a:'end'}]});
+        P.place({text:o.bnd.right,size:11.5,weight:600,force:true,cands:[{x:bx+5,y:T+ph-6,a:'start'}]});
+        lab+=`<text class="xtra" x="${bx-5}" y="${T+ph-6}" text-anchor="end" style="fill:var(--sig)">${esc(o.bnd.left)}</text><text class="xtra" x="${bx+5}" y="${T+ph-6}" style="fill:var(--sig)">${esc(o.bnd.right)}</text>`;}
+      const dec=sc.step<1?1:0;
+      sc.ticks.forEach(t=>{const yy=y(t);
+        h+=`<line class="${Math.abs(t)<1e-9?'zero':'grid'}" x1="${LEFT}" x2="${LEFT+plotW}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}"/>`+
+           `<text class="ytick" x="${LEFT-8}" y="${(yy+4).toFixed(1)}" text-anchor="end">${fmt(t,dec)}${o.unit||''}</text>`;});
+      const barLabs=[];
+      if(o.bars){const nb=o.bars.length, bw=nb>1?14:20, b0=y(Math.max(sc.lo,Math.min(sc.hi,0)));
+        o.bars.forEach((b,bi)=>{b.values.forEach((v,k)=>{if(!fin(v))return;const yy=y(v), xx=x(k+1)-nb*bw/2+bi*bw+1;
+          h+=`<rect x="${xx}" y="${Math.min(yy,b0).toFixed(1)}" width="${bw-2}" height="${Math.max(1,Math.abs(yy-b0)).toFixed(1)}" rx="2" style="fill:${b.color}" fill-opacity="${b.solid?.85:.26}"/>`;
+          if(b.pct&&v>=5)barLabs.push({x:xx+bw/2-1,y:Math.min(yy,b0),text:String(Math.round(v)),color:b.color});});});}
+      (o.series||[]).forEach(s=>{if(s.noLine)return;let d='',pen=false;
+        s.values.forEach((v,i)=>{if(!fin(v)){pen=false;return;}d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1);pen=true;});
+        if(d)h+=`<path d="${d}" fill="none" style="stroke:${s.color}" stroke-width="${s.thin?1.8:2.3}" stroke-linejoin="round" stroke-linecap="round"${s.dash?` stroke-dasharray="${s.dash}"`:''}/>`;});
+      const vLabs=[];
+      (o.series||[]).forEach(s=>{s.values.forEach((v,i)=>{if(!fin(v))return;const xx=x(i),yy=y(v);
+        if(s.diamond){h+=`<path d="M${xx} ${yy-6}L${xx+6} ${yy}L${xx} ${yy+6}L${xx-6} ${yy}Z" style="fill:${s.color}"/>`;P.block({x0:xx-6,x1:xx+6,y0:yy-6,y1:yy+6});}
+        else if(!s.noDots){h+=`<circle cx="${xx}" cy="${yy.toFixed(1)}" r="${s.thin?3:4}" style="fill:var(--panel);stroke:${s.color}" stroke-width="2"/>`;P.block({x0:xx-5,x1:xx+5,y0:yy-5,y1:yy+5});}
+        if(s.labels!==false)vLabs.push({xx,yy,v,s,i});});});
+      vLabs.forEach(l=>{
+        const up=[l.yy-9,l.yy-23,l.yy-37], dn=[l.yy+18,l.yy+32,l.yy+46];
+        const ys=l.s.below?dn.concat(up):up.concat(dn), txt=l.s.lab?l.s.lab(l.v,l.i):fmt(l.v,1);
+        const c=P.place({text:txt,size:12,weight:600,cands:ys.map(yv=>({x:l.xx,y:yv}))});
+        if(c)lab+=`<text class="vlab" x="${c.x}" y="${c.y.toFixed(1)}" text-anchor="middle" style="fill:${l.s.color}">${esc(txt)}</text>`;});
+      barLabs.forEach(l=>{
+        const c=P.place({text:l.text,size:10.5,weight:600,cands:[0,1,2,3].map(k=>({x:l.x,y:l.y-4-k*12}))});
+        if(c)lab+=`<text class="blab" x="${c.x}" y="${c.y.toFixed(1)}" text-anchor="middle" style="fill:${l.color}">${l.text}</text>`;});
+      h+=lab;
+    } else h+=`<text class="empty" x="${LEFT+10}" y="${T+ph/2}">${esc(o.idealMsg||'All stages are ideal for this parameter.')}</text>`;
+    if(o.extra)o.extra.forEach((t,i)=>{if(t)h+=`<text class="xtra" x="${x(i)}" y="${T+ph+16}" text-anchor="middle" style="fill:${t.color}">${esc(t.text)}</text>`;});
+  }
+  for(let i=0;i<=N;i++){
+    const sym=i===0?'in':symOf(flat.entries[i-1]), nm=i===0?'Input':colName(i), off=i>0&&flat.entries[i-1].off, mx=Math.max(12,Math.floor(COL/7));
+    h+=`<use href="#s-${sym}" class="su xsym" x="${x(i)-17}" y="${H-44}" width="34" height="18"${off?' opacity=".35"':''}/>`+
+       `<text class="xlab" x="${x(i)}" y="${H-10}" text-anchor="middle"${off?' style="fill:var(--warn)"':''}>${esc(off?trunc(nm,mx-6)+' (off)':trunc(nm,mx))}</text>`;
+  }
+  for(let i=0;i<=N;i++)h+=`<rect data-hit="${i}" x="${LEFT+i*COL}" y="0" width="${COL}" height="${H}" fill="transparent"/>`;
+  svg.innerHTML=h;
+}
+const hrColor=v=>v<0?'var(--bad)':v<3?'var(--warn)':'var(--muted)';
+function renderCharts(r){
+  const E=flat.entries, n=r?r.nodes:null;
+  if(!r){const msg=`Choose an arm for “${flat.incomplete.name}” to run the analysis.`;
+    ['#chG','#chN','#chP','#chI','#chL','#chC'].forEach(id=>chart($(id),{msg,h:id==='#chL'?300:256}));return;}
+  const bnd=r.bnd!=null?{col:r.bnd,left:'power gain',right:'+ voltage gain'}:null;
+  chart($('#chG'),{zero:true,bnd,bars:[{color:'var(--gain)',values:n.slice(1).map(p=>p.p.off?null:p.gStage)}],series:[{color:'var(--gain)',values:n.map(p=>p.gShow)}]});
+  chart($('#chN'),{zero:true,bars:[{color:'var(--nf)',values:n.slice(1).map(p=>p.p.off?null:p.p.nf)}],series:[{color:'var(--nf)',values:n.map(p=>p.nf)}],
+    mark:r.jump.col>0&&r.jump.d>0.05?{col:r.jump.col,color:'var(--nf)',text:`largest rise +${fmt(r.jump.d,2)} dB`}:null});
+  chart($('#chP'),{idealMsg:'All stages are ideal, so no compression point is defined.',
+    series:[{color:'var(--op1)',dash:'6 4',values:n.map((p,i)=>i?p.op1:null)},{color:'var(--p1)',below:true,values:n.map((p,i)=>i?p.ip1:null)}],
+    mark:r.limP.col>0?{col:r.limP.col,color:'var(--p1)',text:`limiting ${Math.round(r.limP.v*100)}%`}:null});
+  chart($('#chI'),{idealMsg:'All stages are ideal, so no intercept point is defined.',
+    series:[{color:'var(--ip3)',dash:'6 4',values:n.map((p,i)=>i?p.oip3:null)},{color:'var(--ip3)',below:true,values:n.map((p,i)=>i?p.iip3:null)}],
+    mark:r.limI.col>0?{col:r.limI.col,color:'var(--ip3)',text:`limiting ${Math.round(r.limI.v*100)}%`}:null});
+  chart($('#chL'),{h:300,
+    series:[{color:'var(--muted)',dash:'5 4',thin:true,labels:false,noDots:true,values:n.map(p=>p.noise)},
+            {color:'var(--im)',dash:'2 3',thin:true,labels:false,values:n.map(p=>p.im3)},
+            {color:'var(--im2)',dash:'6 2 1 2',thin:true,labels:false,values:n.map(p=>p.im2)},
+            {color:'var(--p1)',noLine:true,diamond:true,labels:false,values:n.map(p=>p.own)},
+            {color:'var(--sig)',values:n.map(p=>p.sig),lab:(v,i)=>n[i].bb?fmtV(n[i].vpp):fmt(v,1)}],
+    bnd:r.bnd!=null?{col:r.bnd,left:'dBm',right:'Vpp labels'}:null,
+    extra:n.map(p=>p.hr==null?null:{text:`Peak HR ${fmt(p.hr,1)} dB`,color:hrColor(p.hr)}),
+    mark:r.worst&&r.worst.hr<3?{col:r.worst.col,color:r.worst.hr<0?'var(--bad)':'var(--warn)',text:flat.entries[r.worst.col-1].kind==='adc'?(r.worst.hr<0?'peaks clip':'peaks near FS'):(r.worst.hr<0?'peaks compress':'peaks near P1dB')}:null});
+  $('#lgIm2L').hidden=!n.some(p=>p.im2!=null);
+  chart($('#chC'),{yfix:[0,100],unit:'%',
+    bars:[{color:'var(--nf)',solid:true,pct:true,values:r.sh.nf.map(v=>v*100)},{color:'var(--p1)',solid:true,pct:true,values:r.sh.p1.map(v=>v*100)},{color:'var(--ip3)',solid:true,pct:true,values:r.sh.ip3.map(v=>v*100)}]});
+}
+
+/* ---------- summary / ADC / insight ---------- */
+function renderSummary(r){
+  const elC=$('#sumCascade'), elT=$('#sumTone');
+  $('#toneSub').textContent=`At ${fmt(state.set.pin,1)} dBm per tone, in ${fmtU(state.set.bw)} MHz`;
+  if(!r){const msg=`<div class="paused">Choose an arm for “${esc(flat.incomplete.name)}” in Path selection to run the analysis.</div>`;elC.innerHTML=msg;elT.innerHTML='';$('#insight').innerHTML='';return;}
+  const L=r.last, N=flat.entries.length;
+  const kv=(k,v,u,c,d)=>`<div class="kv" style="--c:${c}"><div class="kvr"><span class="k">${k}</span><span class="v">${v}<small>${u}</small></span></div>${d?`<div class="kd">${d}</div>`:''}</div>`;
+  const io=(a,b)=>`${fmt(a,1)}<span class="sl">/</span>${fmt(b,1)}`;
+  elC.innerHTML=
+    (r.bnd!=null?kv('Total gain',fmt(r.gRF+r.gBB,2),'dB','var(--gain)',`RF <b>${fmt(r.gRF,2)} dB</b> (power), BB <b>${fmt(r.gBB,2)} dB</b> (voltage)`):kv('Total gain',fmt(L.g,2),'dB','var(--gain)'))+
+    kv('Noise figure',fmt(L.nf,2),'dB','var(--nf)')+
+    kv('P1dB<small>input / output</small>',N?io(L.ip1,L.op1):'–','dBm','var(--p1)')+
+    kv('IP3<small>input / output</small>',N?io(L.iip3,L.oip3):'–','dBm','var(--ip3)')+
+    (r.irr!=null?kv('Image rejection',fmt(r.irr,1),'dB','var(--im2)'):'');
+  elT.innerHTML=
+    (L.bb?kv('Output level',fmtV(L.vpp).replace(/ (m|µ)?Vpp$/,''),fmtV(L.vpp).replace(/^[\d.]+ /,''),'var(--sig)',`${fmt(L.sig,1)} dBm, ${fmt(20*Math.log10(L.vrms),1)} dBV`):kv('Output level',fmt(L.sig,1),'dBm','var(--sig)'))+
+    kv('Output SNR',fmt(L.snr,1),'dB','var(--sig)')+
+    kv('IMD3',L.imd==null?'–':fmt(-L.imd,1),'dBc','var(--im)')+
+    kv('SFDR',fmt(r.sfdr,1),'dB','var(--im)')+
+    kv('Sensitivity',fmt(r.sens,1),'dBm','var(--muted)');
+  let t='';
+  if(!N)t='The chain is empty. Add components from the “Add to chain” column on the right.';
+  else{
+    if(r.topNF.col>0)t+=`<b>${esc(colName(r.topNF.col))}</b> sets most of the noise (${Math.round(r.topNF.v*100)}% of F−1). `;
+    if(r.jump.col>0&&r.jump.d>0.05)t+=`The largest NF rise is after <b>${esc(colName(r.jump.col))}</b>: +${fmt(r.jump.d,2)} dB. `;
+    if(r.limP.col>0)t+=`P1dB is limited most by <b>${esc(colName(r.limP.col))}</b> (${Math.round(r.limP.v*100)}%), IP3 by <b>${r.limI.col>0?esc(colName(r.limI.col)):'none'}</b>${r.limI.col>0?` (${Math.round(r.limI.v*100)}%)`:''}. `;
+    if(r.irr!=null)t+=`I/Q imbalance limits image rejection to <b>${fmt(r.irr,1)} dB</b>${r.irr<state.set.snrReq+3?', which is close to or below the required SNR, so the mirror of the signal will limit demodulation':''}. `;
+    if(r.worst&&r.worst.hr<3){const isA=flat.entries[r.worst.col-1].kind==='adc';t+=`<b>${esc(colName(r.worst.col))}</b> ${r.worst.hr<0?(isA?'clips':'is driven into compression'):(isA?'is close to full scale':'is close to compression')}: the signal peak (input power + ${fmt(state.set.papr,1)} dB peak factor) is ${fmt(r.worst.hr,1)} dB below its limit.`;}
+  }
+  $('#insight').innerHTML=t;
+}
+function renderAdc(r){
+  const el=$('#adcPanel');
+  if(!r||!r.adc){el.hidden=true;return;}
+  const a=r.adc, S=state.set, M=3; el.hidden=false;
+  const snrM=a.snrOut-S.snrReq;           // = Pin - sensitivity
+  let kind,verdict,adv;
+  if(a.peakHr<0){kind='bad';verdict='Clipping';
+    adv=`The peak exceeds ADC full scale by ${fmt(-a.peakHr,1)} dB. Lower the gain before the ADC by at least ${fmt(-a.peakHr+M,1)} dB to get ${M} dB of peak headroom back, or reduce the input level.`;}
+  else if(snrM<0){kind='bad';verdict='Below Sensitivity';
+    adv=`SNR is ${fmt(a.snrOut,1)} dB, ${fmt(-snrM,1)} dB short of the required ${fmt(S.snrReq,1)} dB, so the signal cannot be detected. The input needs to be at least ${fmt(r.sens,1)} dBm.`;}
+  else if(a.peakHr<M){kind='warn';verdict='Close to Clipping';
+    adv=`Only ${fmt(a.peakHr,1)} dB of peak headroom left. The ADC clips at ${fmt(a.maxIn,1)} dBm input.`;}
+  else if(snrM<M){kind='warn';verdict='Signal Close to Sensitivity';
+    adv=`SNR is only ${fmt(snrM,1)} dB above the required ${fmt(S.snrReq,1)} dB. A ${fmt(snrM,1)} dB drop in input power reaches the sensitivity limit at ${fmt(r.sens,1)} dBm.`;}
+  else{kind='ok';verdict='Well Placed';
+    adv=`The signal is ${fmt(snrM,1)} dB above the sensitivity limit and ${fmt(a.peakHr,1)} dB below clipping.`;}
+  if(a.bwWarn)adv+=' Note: the noise bandwidth is wider than fs/2.';
+  let note='';
+  if(a.nfDeg>3)note=`<p class="note2"><span class="badge warn">ADC Noise Dominates</span>This is a design note, not a level problem: the ADC adds ${fmt(a.nfDeg,1)} dB to the cascade NF, so sensitivity is ${fmt(a.nfDeg,1)} dB worse than the analog chain alone would allow.${a.peakHr>M?` Up to ${fmt(a.peakHr-M,1)} dB more gain before the ADC would recover most of it and still leave ${M} dB of peak headroom.`:''}</p>`;
+  else if(a.nfDeg>1)note=`<p class="note2"><span class="badge warn">ADC Noise Noticeable</span>The ADC adds ${fmt(a.nfDeg,2)} dB to the cascade NF. Front-end noise about 10 dB above ADC noise keeps that under 0.5 dB.</p>`;
+  // level gauge on the input-power axis: sensitivity ... clip
+  const lo=r.sens, hi=a.maxIn, pin=S.pin;
+  const g0=Math.min(lo,pin,hi)-8, g1=Math.max(hi,pin,lo)+8, P=v=>Math.max(0,Math.min(100,(v-g0)/(g1-g0)*100));
+  const seg=(x0,x1,c,op)=>{const L=P(x0),R=P(x1);return R>L?`<i style="left:${L}%;width:${R-L}%;background:${c};opacity:${op}"></i>`:'';};
+  const gauge=`<div class="gwrap"><span class="gpin" style="left:${Math.max(8,Math.min(92,P(pin)))}%;color:var(--${kind})">Input ${fmt(pin,1)} dBm</span>
+    <div class="gauge" role="img" aria-label="Input level between sensitivity and ADC clipping">
+      ${seg(g0,lo,'var(--bad)',.55)}${seg(lo,Math.min(lo+M,hi),'var(--warn)',.55)}${seg(lo+M,hi-M,'var(--ok)',.55)}${seg(Math.max(hi-M,lo),hi,'var(--warn)',.55)}${seg(hi,g1,'var(--bad)',.55)}
+      <span class="gmark" style="left:${P(pin)}%"></span></div>
+    <div class="glabs" style="--gl:${Math.abs(P(hi)-P(lo))<30?34:18}px"><span style="left:${Math.max(9,Math.min(91,P(lo)))}%;transform:translateX(-50%)">Sensitivity ${fmt(lo,1)} dBm</span><span style="left:${Math.max(9,Math.min(91,P(hi)))}%;top:${Math.abs(P(hi)-P(lo))<30?16:0}px;transform:translateX(-50%)">Clip ${fmt(hi,1)} dBm</span></div></div>`;
+  const f=(k,v)=>`<div class="fact"><span>${k}</span><b>${v}</b></div>`;
+  el.innerHTML=`<div class="panel-head"><h2>ADC Check</h2><span class="badge ${kind}">${verdict}</span><span class="hint">Red: clipping or below sensitivity. Amber: within ${M} dB of either limit. Green: in between.</span></div>`+gauge+
+    `<p class="advice" style="margin-top:0">${adv}</p><div class="facts">`+
+    f('Signal at ADC',`${fmt(a.dbfs,1)} dBFS (${fmtV(a.sigVpp)})`)+f('Peak headroom to full scale',`${fmt(a.peakHr,1)} dB`)+
+    f('SNR margin over required',`${sgn(snrM,1)} dB`)+f('Max input before clipping',`${fmt(a.maxIn,1)} dBm`)+
+    f('ADC full scale',`${fmt(a.fsVpp,2)} Vpp`)+f('ADC input',a.iface)+f('SNR at ADC output',`${fmt(a.snrOut,1)} dB`)+
+    f('Front-end noise above ADC noise',`${sgn(a.margin,1)} dB`)+f('NF added at ADC (incl. folding)',`${fmt(a.nfDeg,2)} dB`)+
+    f('Noise folding penalty',a.alias&&a.alias.b!=null?`${fmt(a.alias.pen,2)} dB (BW ${fmt(a.alias.b,1)} MHz)`:'not modelled')+
+    f('Dynamic range (sensitivity to clip)',`${fmt(a.dr,1)} dB`)+
+    `</div>${note}`+
+    (a.alias&&a.alias.b==null?`<p class="note2"><span class="badge warn">No Bandwidth Limit</span>Nothing in the path limits the noise bandwidth before the ADC, so noise folding is not modelled. Add an anti-alias filter (or an op-amp, whose GBW sets a limit) to see it.</p>`:'')+
+    (a.mismatch?`<p class="note2"><span class="badge warn">Impedance Mismatch</span>The node driving the ADC is ${fmt(a.zNode,0)} Ω but the ADC input is ${fmt(a.rin,0)} Ω. Results assume a matched interface; add a balun or set the driver's Z<sub>out</sub> to ${fmt(a.rin,0)} Ω.</p>`:'');
+}
+
+/* ---------- hover + tooltip ---------- */
+const tip=$('#tip');
+let hoverCol=-1;
+function setHover(col,ev){
+  if(col!==hoverCol){
+    document.querySelectorAll('.hover').forEach(el=>el.classList.remove('hover'));
+    document.querySelectorAll(`[data-col="${col}"]`).forEach(el=>el.classList.add('hover'));
+    hoverCol=col;
+  }
+  if(!ev||!lastR){tip.hidden=true;return;}
+  const p=lastR.nodes[col]; if(!p){tip.hidden=true;return;}
+  const row=(c,k,v)=>`<tr><td><span class="sw" style="background:${c}"></span>${k}</td><td>${v}</td></tr>`;
+  tip.innerHTML=`<b>${col?esc(colName(col))+(flat.entries[col-1].off?' (bypassed)':' output'):'Input'}</b><table>`+
+    row('var(--gain)',p.bb?'Gain (power, then voltage)':'Cumulative gain',fmt(p.gShow,2)+' dB')+row('var(--nf)','Cumulative NF',fmt(p.nf,2)+' dB')+
+    (col?row('var(--p1)','Input P1dB',fmt(p.ip1,2)+' dBm')+row('var(--op1)','Output P1dB',fmt(p.op1,2)+' dBm')+
+      row('var(--ip3)','Input IP3',fmt(p.iip3,2)+' dBm')+row('var(--ip3)','Output IP3',fmt(p.oip3,2)+' dBm'):'')+
+    (p.bb?row('var(--sig)','Signal per tone',fmtV(p.vpp)+' ('+fmt(20*Math.log10(p.vrms),1)+' dBV)')+row('var(--muted)','Noise density',fmt(p.en*1e9,2)+' nV/√Hz')
+         :row('var(--sig)','Signal per tone',fmt(p.sig,1)+' dBm ('+fmtV(p.vpp)+')')+row('var(--muted)','Noise floor',fmt(p.noise,1)+' dBm'))+
+    row('var(--sig)','SNR',fmt(p.snr,1)+' dB')+
+    (p.imd!=null?row('var(--im)','IMD3',fmt(-p.imd,1)+' dBc'):'')+
+    (p.imd2!=null?row('var(--im2)','IMD2',fmt(-p.imd2,1)+' dBc'):'')+
+    (p.hr!=null?row(hrColor(p.hr),'Peak headroom',fmt(p.hr,1)+' dB'):'')+
+    '</table>';
+  tip.hidden=false;
+  const tw=tip.offsetWidth, th=tip.offsetHeight;
+  let lx=ev.clientX+16, ly=ev.clientY+14;
+  if(lx+tw>innerWidth-8)lx=ev.clientX-tw-16;
+  if(ly+th>innerHeight-8)ly=ev.clientY-th-14;
+  tip.style.left=Math.max(8,lx)+'px'; tip.style.top=Math.max(8,ly)+'px';
+}
+function clearHover(){document.querySelectorAll('.hover').forEach(el=>el.classList.remove('hover'));hoverCol=-1;tip.hidden=true;}
+document.querySelectorAll('svg.chart').forEach(svg=>{
+  const h=e=>{if(drag)return;const t=e.target.closest('[data-hit]');if(t)setHover(+t.dataset.hit,e);};
+  svg.addEventListener('pointermove',h); svg.addEventListener('pointerdown',h);
+  svg.addEventListener('pointerleave',clearHover);
+});
+board.addEventListener('scroll',()=>{tip.hidden=true;},{passive:true});
+
+/* ---------- input power sweep ---------- */
+function sweepModel(r){
+  const L=r.last, G=L.g, N=L.noiseTh, oip3=L.oip3, oip2=L.oip2, op1=L.op1, J=L.jit?L.jit.J:null;
+  const psat=fin(op1)?dbl(op1+2.16):null;
+  const nz=s=>dbl(N)+(J!=null?dbl(s+J):0);
+  const m={G,N,ip1:L.ip1,op1,iip3:L.iip3,oip3,iip2:L.iip2,oip2,J,adc:r.adc,sens:r.sens,off:L.bb?-30+ldb(L.z):0,U:L.bb?'dBV':'dBm',
+    lin:x=>x+G,
+    comp:x=>{if(!psat)return x+G;const pl=dbl(x+G);return ldb(pl/Math.sqrt(1+Math.pow(pl/psat,2)));},
+    im3:x=>fin(oip3)?3*(x+G)-2*oip3:null,
+    im2:x=>fin(oip2)?2*(x+G)-oip2:null,
+    snr:x=>{const s=x+G;return s-ldb(nz(s));},
+    sndr:x=>{const s=x+G;return s-ldb(nz(s)+(fin(oip3)?dbl(3*s-2*oip3):0));}};
+  if(fin(oip3)){let bx=null,by=-Infinity;
+    for(let x=-220;x<=60;x+=0.05){const y=m.sndr(x);if(y>by){by=y;bx=x;}}
+    if(bx!=null&&bx>-219&&bx<59.9){m.opt=bx;m.sndrMax=by;}}
+  const lims=[]; if(fin(m.ip1))lims.push(m.ip1); if(m.adc)lims.push(m.adc.maxIn);
+  m.top=lims.length?Math.min(...lims):null;
+  return m;
+}
+function sweepAuto(m){
+  const S=state.set;
+  let lo=Math.min(m.sens-15,S.pin-10);
+  const his=[S.pin+10]; if(fin(m.ip1))his.push(m.ip1+6); if(fin(m.iip3))his.push(m.iip3+4); if(m.adc)his.push(m.adc.maxIn+6);
+  let hi=Math.max(...his);
+  lo=Math.floor(lo/5)*5; hi=Math.ceil(hi/5)*5;
+  if(hi-lo>200)lo=hi-200; if(hi-lo<20)hi=lo+20;
+  return [lo,hi];
+}
+function plotXY(svg,o){
+  const W=o.W,H=o.H,ml=50,mr=12,mt=10,mb=40,pw=W-ml-mr,ph=H-mt-mb;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('width',W); svg.setAttribute('height',H);
+  const [x0,x1]=o.xr, sy=nice(o.yr[0],o.yr[1],6), sxs=nice(x0,x1,Math.max(4,Math.round(pw/70)));
+  const X=v=>ml+pw*(v-x0)/(x1-x0), Y=v=>mt+ph*(1-(v-sy.lo)/(sy.hi-sy.lo));
+  const cid=svg.id+'clip';
+  const P=makePlacer({x0:ml+1,y0:mt+1,x1:ml+pw-1,y1:mt+ph-1});
+  const halo='paint-order:stroke;stroke:var(--panel);stroke-width:3px';
+  let h=`<defs><clipPath id="${cid}"><rect x="${ml}" y="${mt}" width="${pw}" height="${ph}"/></clipPath></defs>`, lab='';
+  const regs=[];
+  (o.regions||[]).forEach(g=>{const a=Math.max(x0,g.x0),b=Math.min(x1,g.x1);if(b<=a)return;
+    h+=`<rect x="${X(a).toFixed(1)}" y="${mt}" width="${(X(b)-X(a)).toFixed(1)}" height="${ph}" style="fill:${g.color}" fill-opacity=".09"/>`;
+    regs.push({x:X(b)-5,text:g.label,color:g.color});});
+  sy.ticks.forEach(t=>{const yy=Y(t).toFixed(1);h+=`<line class="grid" x1="${ml}" x2="${ml+pw}" y1="${yy}" y2="${yy}"/><text class="ytick" x="${ml-6}" y="${(+yy+4)}" text-anchor="end">${fmt(t,sy.step<1?1:0)}</text>`;});
+  sxs.ticks.filter(t=>t>=x0-1e-9&&t<=x1+1e-9).forEach(t=>{const xx=X(t).toFixed(1);h+=`<line class="grid" x1="${xx}" x2="${xx}" y1="${mt}" y2="${mt+ph}"/><text class="ytick" x="${xx}" y="${mt+ph+15}" text-anchor="middle">${fmt(t,sxs.step<1?1:0)}</text>`;});
+  h+=`<rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="none" style="stroke:var(--line)"/>`+
+     `<text class="xlab" x="${ml+pw/2}" y="${H-5}" text-anchor="middle">${esc(o.xlabel)}</text>`+
+     `<text class="xlab" transform="translate(12 ${mt+ph/2}) rotate(-90)" text-anchor="middle">${esc(o.ylabel)}</text>`;
+  h+=`<g clip-path="url(#${cid})">`;
+  const hls=[];
+  (o.hlines||[]).forEach(l=>{const yy=Y(l.y);h+=`<line x1="${ml}" x2="${ml+pw}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" style="stroke:${l.color}" stroke-width="1.5" stroke-dasharray="${l.dash||'5 3'}"/>`;
+    if(l.label)hls.push({yy,text:l.label,color:l.color});});
+  (o.series||[]).forEach(s=>{let d='',pen=false;
+    for(let i=0;i<=400;i++){const xv=x0+(x1-x0)*i/400, yv=s.f(xv);if(!fin(yv)){pen=false;continue;}
+      d+=(pen?'L':'M')+X(xv).toFixed(1)+' '+Math.max(-5000,Math.min(5000,Y(yv))).toFixed(1);pen=true;}
+    if(d)h+=`<path d="${d}" fill="none" style="stroke:${s.color}" stroke-width="${s.w||2.2}"${s.dash?` stroke-dasharray="${s.dash}"`:''} stroke-linejoin="round"/>`;});
+  const pts=[];
+  (o.points||[]).forEach(p=>{if(!fin(p.x)||!fin(p.y)||p.x<x0||p.x>x1)return;const xx=X(p.x),yy=Y(p.y);
+    h+=`<path d="M${xx} ${yy-6}L${xx+6} ${yy}L${xx} ${yy+6}L${xx-6} ${yy}Z" style="fill:${p.color};stroke:var(--panel)" stroke-width="1.5"/>`;
+    P.block({x0:xx-7,x1:xx+7,y0:yy-7,y1:yy+7}); pts.push({xx,yy,text:p.label,color:p.color});});
+  h+='</g>';
+  const vls=[];
+  (o.vlines||[]).forEach(l=>{if(!fin(l.x)||l.x<x0||l.x>x1)return;const xx=X(l.x);
+    h+=`<line x1="${xx.toFixed(1)}" x2="${xx.toFixed(1)}" y1="${mt}" y2="${mt+ph}" style="stroke:${l.color}" stroke-width="${l.w||1.3}" stroke-dasharray="${l.dash||'4 3'}"/>`;
+    vls.push({xx,text:l.label,color:l.color});});
+  const put=(text,color,size,cands,cls)=>{const c=P.place({text,size,weight:600,cands});
+    if(c)lab+=`<text class="${cls}" x="${c.x.toFixed(1)}" y="${c.y.toFixed(1)}" text-anchor="${c.a||'middle'}" style="fill:${color};${halo}">${esc(text)}</text>`;};
+  pts.forEach(p=>{const c=[];[[-8,'start',9],[-8,'end',-9],[16,'start',9],[16,'end',-9],[-22,'start',9],[-22,'end',-9],[30,'start',9],[30,'end',-9]]
+    .forEach(([dy,a,dx])=>c.push({x:p.xx+dx,y:p.yy+dy,a}));put(p.text,p.color,12,c,'vlab');});
+  vls.forEach(v=>{const c=[];for(let k=0;k<8;k++){c.push({x:v.xx+4,y:mt+13+k*14,a:'start'});c.push({x:v.xx-4,y:mt+13+k*14,a:'end'});}put(v.text,v.color,11.5,c,'xtra');});
+  hls.forEach(l=>{const c=[];[0.01,0.3,0.55,0.8].forEach(f=>{c.push({x:ml+6+pw*f,y:l.yy-5,a:'start'});c.push({x:ml+6+pw*f,y:l.yy+14,a:'start'});});put(l.text,l.color,11.5,c,'xtra');});
+  regs.forEach(r=>{const c=[];for(let k=0;k<6;k++)c.push({x:r.x,y:mt+ph-7-k*14,a:'end'});put(r.text,r.color,11.5,c,'xtra');});
+  h+=lab;
+  h+=`<line class="cross" x1="0" x2="0" y1="${mt}" y2="${mt+ph}" visibility="hidden"/>`;
+  svg.innerHTML=h; svg._g={X,ml,pw,x0,x1,W};
+}
+let swModel=null;
+function renderSweep(r){
+  const msg=$('#swMsg'), body=$('#swBody');
+  if(!r||!flat.entries.length){body.hidden=true;msg.hidden=false;swModel=null;
+    msg.textContent=r?'Add components to sweep the input power.':`Choose an arm for “${flat.incomplete.name}” to run the sweep.`;return;}
+  body.hidden=false; msg.hidden=true;
+  const m=sweepModel(r), S=state.set, auto=sweepAuto(m);
+  $('#swFrom').placeholder=fmt(auto[0],0); $('#swTo').placeholder=fmt(auto[1],0);
+  let x0=S.swFrom==null?auto[0]:S.swFrom, x1=S.swTo==null?auto[1]:S.swTo;
+  const badR=x1-x0<1; $('#swTo').classList.toggle('bad',badR&&S.swTo!=null); if(badR){x0=auto[0];x1=auto[1];}
+  m.xr=[x0,x1]; swModel=m;
+  $('#lgAdc').hidden=!m.adc;
+  const regions=[];
+  if(fin(m.ip1))regions.push({x0:m.ip1,x1:1e9,color:'var(--warn)',label:'beyond P1dB'});
+  if(m.adc)regions.push({x0:m.adc.maxIn,x1:1e9,color:'var(--bad)',label:'ADC clipping',row:1});
+  const vl=[{x:S.pin,color:'var(--ink)',label:`Pin ${fmt(S.pin,1)} dBm`,dash:'1 0',w:1.6},{x:m.sens,color:'var(--muted)',label:`Sensitivity ${fmt(m.sens,1)} dBm`}];
+  if(fin(m.ip1))vl.push({x:m.ip1,color:'var(--p1)',label:`IP1dB ${fmt(m.ip1,1)} dBm`});
+  if(m.adc)vl.push({x:m.adc.maxIn,color:'var(--bad)',label:`ADC clip ${fmt(m.adc.maxIn,1)} dBm`});
+  const H=330;
+  // plot A
+  const off=m.off, U=m.U, sh=f=>x=>{const v=f(x);return v==null?null:v+off;};
+  const sigHi=m.lin(x1)+off, yAlo=m.N+off-25;
+  const yAhiC=[sigHi+5]; if(fin(m.oip3)&&m.iip3<=x1)yAhiC.push(m.oip3+off+5); if(m.adc)yAhiC.push(m.adc.fs+off+5);
+  const serA=[{f:x=>m.N+off,color:'var(--muted)',dash:'5 3',w:1.8},{f:sh(m.im3),color:'var(--im)'},{f:sh(m.lin),color:'var(--sig)',dash:'4 3',w:1.4}];
+  if(fin(m.op1))serA.push({f:sh(m.comp),color:'var(--sig)'});
+  const ptsA=[];
+  if(fin(m.op1))ptsA.push({x:m.ip1,y:m.op1+off,color:'var(--p1)',label:`OP1dB ${fmt(m.op1+off,1)} ${U}`});
+  if(fin(m.oip3))ptsA.push({x:m.iip3,y:m.oip3+off,color:'var(--ip3)',label:`OIP3 ${fmt(m.oip3+off,1)} ${U}`});
+  plotXY($('#swA'),{W:$('#swFigA').clientWidth,H,xr:[x0,x1],yr:[yAlo,Math.max(...yAhiC)],xlabel:'Input power per tone (dBm)',ylabel:U==='dBV'?'Output (dBV, rms)':'Output power (dBm)',
+    series:serA,hlines:m.adc?[{y:m.adc.fs+off,color:'var(--bad)',dash:'6 3',label:`ADC FS ${fmt(m.adc.fsVpp,2)} Vpp`}]:[],points:ptsA,vlines:vl,regions});
+  // plot B
+  const peak=fin(m.sndrMax)?m.sndrMax:Math.min(m.snr(x1),m.J!=null?-m.J:Infinity);
+  const yBlo=Math.min(0,S.snrReq-10), yBhi=Math.max(peak,S.snrReq)+20;
+  const ptsB=[]; if(fin(m.opt))ptsB.push({x:m.opt,y:m.sndrMax,color:'var(--op1)',label:`Max SNDR ${fmt(m.sndrMax,1)} dB`});
+  plotXY($('#swB'),{W:$('#swFigB').clientWidth,H,xr:[x0,x1],yr:[yBlo,yBhi],xlabel:'Input power per tone (dBm)',ylabel:'dB',
+    series:[{f:m.snr,color:'var(--sig)'},{f:m.sndr,color:'var(--op1)'}],
+    hlines:[{y:S.snrReq,color:'var(--muted)',label:`Required SNR ${fmt(S.snrReq,1)} dB`}].concat(m.J!=null?[{y:-m.J,color:'var(--bad)',dash:'2 3',label:`Jitter limit ${fmt(-m.J,1)} dB`}]:[]),points:ptsB,vlines:vl,regions});
+  // facts
+  const kv=(k,v,u,c,d)=>`<div class="kv" style="--c:${c}"><div class="kvr"><span class="k">${k}</span><span class="v">${v}<small>${u}</small></span></div>${d?`<div class="kd">${d}</div>`:''}</div>`;
+  const ldr=m.top!=null?m.top-m.sens:null, past=fin(m.opt)&&m.top!=null&&m.opt>m.top;
+  $('#swFacts').innerHTML=kv('Sensitivity',fmt(m.sens,1),'dBm','var(--muted)','SNR = required')+kv('Input P1dB',fmt(m.ip1,1),'dBm','var(--p1)')+
+    kv('Input IP3',fmt(m.iip3,1),'dBm','var(--ip3)')+(m.adc?kv('ADC clips at input',fmt(m.adc.maxIn,1),'dBm','var(--bad)'):'')+
+    kv('Best input for SNDR',fin(m.opt)?fmt(m.opt,1):'–','dBm','var(--op1)',past?'past the P1dB / clip limit':'')+kv('Max SNDR',fin(m.sndrMax)?fmt(m.sndrMax,1):'–','dB','var(--op1)')+
+    kv('SFDR',fmt(r.sfdr,1),'dB','var(--im)')+kv('Dynamic range',ldr==null?'–':fmt(ldr,1),'dB','var(--muted)',m.adc?'sensitivity to P1dB / clip':'sensitivity to P1dB');
+}
+function sweepX(svg,clientX){
+  const g=svg._g; if(!g||!swModel)return null;
+  const rc=svg.getBoundingClientRect(), sc=rc.width/g.W, px=(clientX-rc.left)/sc;
+  if(px<g.ml||px>g.ml+g.pw)return null;
+  return g.x0+(px-g.ml)/g.pw*(g.x1-g.x0);
+}
+function sweepCross(xv){
+  ['#swA','#swB'].forEach(id=>{const s=$(id), c=s.querySelector('.cross'); if(!c||!s._g)return;
+    if(xv==null){c.setAttribute('visibility','hidden');return;}
+    const xx=s._g.X(xv).toFixed(1); c.setAttribute('x1',xx); c.setAttribute('x2',xx); c.setAttribute('visibility','visible');});
+}
+['#swA','#swB'].forEach(id=>{
+  const svg=$(id);
+  svg.addEventListener('pointermove',e=>{
+    const xv=sweepX(svg,e.clientX); if(xv==null){sweepCross(null);tip.hidden=true;return;}
+    sweepCross(xv); const m=swModel;
+    const row=(c,k,v)=>`<tr><td><span class="sw" style="background:${c}"></span>${k}</td><td>${v}</td></tr>`;
+    const im=m.im3(xv);
+    tip.innerHTML=`<b>Input ${fmt(xv,1)} dBm per tone</b><table>`+
+      row('var(--sig)','Output, est. compression',fmt(m.comp(xv)+m.off,1)+' '+m.U)+row('var(--sig)','Output, linear',fmt(m.lin(xv)+m.off,1)+' '+m.U)+
+      (im!=null?row('var(--im)','IM3 per tone',fmt(im+m.off,1)+' '+m.U)+row('var(--im)','IMD3',fmt(im-m.lin(xv),1)+' dBc'):'')+
+      row('var(--muted)','Output noise floor',fmt(m.N+m.off,1)+' '+m.U)+row('var(--sig)','SNR',fmt(m.snr(xv),1)+' dB')+row('var(--op1)','SNDR',fmt(m.sndr(xv),1)+' dB')+
+      (m.adc?row('var(--bad)','Peak at ADC',fmt(m.lin(xv)+state.set.papr-m.adc.fs,1)+' dBFS'):'')+
+      (fin(m.ip1)?row('var(--p1)','Below input P1dB',fmt(m.ip1-xv,1)+' dB'):'')+'</table>';
+    tip.hidden=false;
+    const tw=tip.offsetWidth, th=tip.offsetHeight; let lx=e.clientX+16, ly=e.clientY+14;
+    if(lx+tw>innerWidth-8)lx=e.clientX-tw-16; if(ly+th>innerHeight-8)ly=e.clientY-th-14;
+    tip.style.left=Math.max(8,lx)+'px'; tip.style.top=Math.max(8,ly)+'px';
+  });
+  svg.addEventListener('pointerleave',()=>{sweepCross(null);tip.hidden=true;});
+  svg.addEventListener('click',e=>{const xv=sweepX(svg,e.clientX);if(xv==null)return;
+    state.set.pin=Math.round(xv*2)/2; $('#setPin').value=num(state.set.pin); $('#setPin').classList.remove('bad');
+    changed(false); setStatus(`Input power set to ${fmt(state.set.pin,1)} dBm per tone`,'');});
+});
+['#swFrom','#swTo'].forEach(id=>$(id).addEventListener('input',e=>{
+  const el=e.target, k=el.id; if(!committing){markPending(el);return;}
+  const raw=el.value.trim();
+  if(raw===''){state.set[k]=null;el.classList.remove('bad');changed(false);return;}
+  const v=parseVal(raw); if(!isFinite(v)){el.classList.add('bad');return;}
+  el.classList.remove('bad'); state.set[k]=v; changed(false);
+}));
+$('#swAuto').addEventListener('click',()=>{state.set.swFrom=null;state.set.swTo=null;$('#swFrom').value='';$('#swTo').value='';
+  $('#swFrom').classList.remove('bad');$('#swTo').classList.remove('bad');changed(false);});
+
+/* ---------- update cycle ---------- */
+function recalc(){
+  flat=flatten();
+  renderPaths();
+  lastR=flat.incomplete?null:compute(flat.entries);
+  updateInfos(); renderSummary(lastR); renderAdc(lastR); renderDiagram(lastR); renderCharts(lastR); renderSweep(lastR);
+}
+function changed(structural){
+  if(structural){layout();renderCards();}
+  recalc(); dirty=true; scheduleDraft(); scheduleCommit(structural?0:600);
+  setStatus(state.id?'Unsaved changes':'Not saved yet','');
+}
+function full(){ $('#chainName').value=state.name; fillSetup(); layout(); renderCards(); recalc(); }
+let resizeT=0;
+addEventListener('resize',()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{layout();recalc();},120);});
+
+/* ---------- status ---------- */
+function setStatus(t,kind){const s=$('#status');s.textContent=t;s.className='status'+(kind?' '+kind:'');}
+const hhmm=d=>new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+const dstr=d=>new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+/* ---------- save / load ---------- */
+function newId(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+async function save(asNew){
+  commit();
+  state.name=($('#chainName').value.trim()||'Untitled chain'); $('#chainName').value=state.name;
+  if(asNew||!state.id)state.id=newId();
+  const doc={v:2,name:state.name,updated:Date.now(),set:state.set,stages:state.stages.map(strip)};
+  setStatus('Saving…','');
+  try{
+    await backend.save(state.id,doc);
+    dirty=false; writeDraft();
+    setStatus(`Saved “${state.name}” ${backend.where} at ${hhmm(doc.updated)}`,'ok');
+  }catch(err){
+    if(backend!==local){
+      try{await local.save(state.id,doc);dirty=false;writeDraft();setStatus('Could not write to your account; saved in this browser instead','warn');return;}catch(e){}
+    }
+    setStatus('Could not save: '+((err&&err.message)||'unknown error'),'bad');
+  }
+  if(!$('#lib').hidden)renderLibrary();
+}
+$('#btnSave').addEventListener('click',()=>save(false));
+$('#btnSaveAs').addEventListener('click',()=>save(true));
+addEventListener('keydown',e=>{
+  const mod=e.ctrlKey||e.metaKey, k=e.key.toLowerCase();
+  if(mod&&k==='s'){e.preventDefault();save(false);}
+  else if(mod&&k==='z'&&!e.shiftKey){e.preventDefault();undo();}
+  else if(mod&&((k==='z'&&e.shiftKey)||k==='y')){e.preventDefault();redo();}
+  else if(e.key==='Escape'&&!$('#lib').hidden)closeLib();
+});
+$('#chainName').addEventListener('input',e=>{state.name=e.target.value;dirty=true;scheduleDraft();scheduleCommit(600);});
+
+function armed(btn,label,fn){
+  if(btn.dataset.armed){clearTimeout(+btn.dataset.armed);delete btn.dataset.armed;btn.classList.remove('armed');btn.textContent=btn.dataset.orig;fn();return;}
+  btn.dataset.orig=btn.textContent; btn.textContent=label; btn.classList.add('armed');
+  btn.dataset.armed=setTimeout(()=>{delete btn.dataset.armed;btn.classList.remove('armed');btn.textContent=btn.dataset.orig;},3500);
+}
+$('#btnNew').addEventListener('click',e=>{
+  const go=()=>{state={id:null,name:'New chain',set:Object.assign({},state.set),stages:[]};dirty=false;full();writeDraft();resetHist();setStatus('Started an empty chain','');};
+  if(!state.stages.length||!dirty)go(); else armed(e.currentTarget,'Unsaved. Sure?',go);
+});
+
+const EXAMPLES=[['IF-sampling receiver','RF front end, mixer, IF amp, IF filter, balun, ADC driver, 250 MS/s ADC',example],
+  ['Zero-IF receiver','LNA, passive mixer (I path), AC-coupling HPF, baseband LNA, active anti-alias LPF, ADC driver, 40 MS/s ADC',exampleZeroIf]];
+function renderExamples(){
+  const ul=$('#exList');
+  ul.innerHTML=EXAMPLES.map((e,i)=>`<li><div class="meta"><div class="nm">${e[0]}</div><div class="sub">${e[1]}</div></div><button class="btn" data-ex="${i}">Open</button></li>`).join('');
+}
+$('#exList').addEventListener('click',e=>{const b=e.target.closest('[data-ex]');if(!b)return;
+  state=normalize(strip_all(EXAMPLES[+b.dataset.ex][2]()));state.id=null;dirty=true;full();writeDraft();resetHist();closeLib();
+  setStatus(`Opened example “${state.name}”. Save it to keep your changes.`,'');});
+const strip_all=o=>Object.assign({},o,{stages:o.stages.map(strip)});
+async function renderLibrary(){
+  renderExamples();
+  const ul=$('#libList'); $('#libNote').textContent=backend===local?'Chains are stored in this browser.':'Chains are stored in your account.';
+  ul.innerHTML='<li><span class="sub">Loading…</span></li>';
+  let items=[];
+  try{items=await backend.list();}catch(e){ul.innerHTML='<li><span class="sub">Could not read the list. Try again in a moment.</span></li>';return;}
+  items.sort((a,b)=>(b.updated||0)-(a.updated||0));
+  if(!items.length){ul.innerHTML='<li><span class="sub">No saved chains yet. Build a chain and press Save.</span></li>';return;}
+  ul.innerHTML=items.map(it=>`<li data-id="${esc(it.id)}"><div class="meta"><div class="nm">${esc(it.name||'Untitled')}${it.id===state.id?' (open)':''}</div><div class="sub">${(it.stages||[]).length} blocks, ${it.updated?dstr(it.updated):''}</div></div><button class="btn" data-open>Open</button><button class="btn" data-del>Delete</button></li>`).join('');
+  ul.querySelectorAll('li[data-id]').forEach(li=>{
+    const it=items.find(x=>x.id===li.dataset.id);
+    li.querySelector('[data-open]').addEventListener('click',()=>{
+      state=normalize(Object.assign({},it,{id:it.id}));dirty=false;full();writeDraft();resetHist();closeLib();
+      setStatus(`Opened “${state.name}”`,'ok');});
+    li.querySelector('[data-del]').addEventListener('click',ev=>armed(ev.currentTarget,'Sure?',async()=>{
+      try{await backend.remove(it.id);if(state.id===it.id){state.id=null;dirty=true;writeDraft();}renderLibrary();}
+      catch(e){setStatus('Could not delete','bad');}}));
+  });
+}
+function openLib(){$('#lib').hidden=false;renderLibrary();$('#libClose').focus();}
+function closeLib(){$('#lib').hidden=true;$('#btnLib').focus();}
+$('#btnLib').addEventListener('click',openLib);
+$('#libClose').addEventListener('click',closeLib);
+$('#lib').addEventListener('click',e=>{if(e.target.id==='lib')closeLib();});
+
+$('#btnExport').addEventListener('click',async()=>{
+  if(!downloads)return;
+  const data=JSON.stringify({v:2,name:state.name,set:state.set,stages:state.stages.map(strip)},null,2);
+  const fn=(state.name||'rf-chain').toLowerCase().replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'')||'rf-chain';
+  try{await downloads.save({filename:fn+'.json',data});setStatus('JSON file downloaded','ok');}
+  catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited'){setStatus('A download prompt is already open','warn');return;}setStatus('Download failed','bad');}
+});
+$('#fileIn').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f)return;
+  try{const o=JSON.parse(await f.text());if(!o||!Array.isArray(o.stages))throw new Error();
+    state=normalize(o); state.id=null; dirty=true; full(); writeDraft(); resetHist();
+    setStatus(`Loaded “${state.name}”. Press Save to keep it.`,'warn');
+  }catch(err){setStatus('Could not read the file: not a valid chain JSON','bad');}
+});
+
+/* ---------- boot ---------- */
+state=readDraft()||example();
+full(); resetHist();
+setStatus(dirty?(state.id?'Unsaved changes':'Not saved yet'):(state.id?`“${state.name}” is open`:'Example chain loaded. Enter your own values.'),'');
+
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{layout();recalc();}).catch(()=>{});
+if(window.claude&&typeof window.claude.use==='function'){
+  claude.use('downloads').then(d=>{if(d){downloads=d;$('#btnExport').hidden=false;}}).catch(()=>{});
+  Promise.all([claude.use('db'),claude.use('user')]).then(async([db,user])=>{
+    if(!db||!user)return;
+    const id=await user.id(); if(!id)return;
+    backend=makeDb(db,id);
+    if(!$('#lib').hidden)renderLibrary();
+  }).catch(()=>{});
+} else {
+  // standalone hosting (GitHub Pages): chains stay in this browser, JSON export is a plain file download
+  downloads={save:async({filename,data})=>{const u=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+    const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}};
+  $('#btnExport').hidden=false;
+  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+})();
+</script>
+</body>
+</html>
